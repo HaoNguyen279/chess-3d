@@ -18,9 +18,10 @@ interface Room {
 
 interface LobbyProps {
   onJoinRoom: (roomId: string, color: 'w' | 'b') => void;
+  onStartOffline?: () => void;
 }
 
-export function Lobby({ onJoinRoom }: LobbyProps) {
+export function Lobby({ onJoinRoom, onStartOffline }: LobbyProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -126,13 +127,20 @@ export function Lobby({ onJoinRoom }: LobbyProps) {
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8 text-center">Chess Multiplayer Lobby</h1>
+        <h1 className="text-4xl font-bold mb-8 text-center">Chess Lobby</h1>
 
         <button
           onClick={() => setShowCreateModal(true)}
-          className="w-full mb-6 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition-colors"
+          className="w-full mb-4 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition-colors"
         >
           + Tạo Phòng Mới
+        </button>
+
+        <button
+          onClick={onStartOffline}
+          className="w-full mb-6 px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition-colors"
+        >
+          🏠 Chơi Offline (2 người trên 1 máy)
         </button>
 
         <div className="bg-gray-800 rounded-lg p-6">

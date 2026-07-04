@@ -14,6 +14,9 @@ export default function Home() {
   const [gameSession, setGameSession] = useState<{ roomId: string; myColor: 'w' | 'b' } | null>(null);
   const connectRoom = useChessStore((state) => state.connectRoom);
   const disconnectRoom = useChessStore((state) => state.disconnectRoom);
+  const isOffline = useChessStore((state) => state.isOffline);
+  const startOfflineGame = useChessStore((state) => state.startOfflineGame);
+  const quitToHub = useChessStore((state) => state.quitToHub);
 
   const handleJoinRoom = useCallback((roomId: string, myColor: 'w' | 'b') => {
     connectRoom(roomId, myColor);
@@ -25,15 +28,23 @@ export default function Home() {
     setGameSession(null);
   }, [disconnectRoom]);
 
-  if (!gameSession) {
-    return <Lobby onJoinRoom={handleJoinRoom} />;
+  const handleStartOffline = useCallback(() => {
+    startOfflineGame();
+  }, [startOfflineGame]);
+
+  const handleBackToHub = useCallback(() => {
+    quitToHub();
+  }, [quitToHub]);
+
+  if (!gameSession && !isOffline) {
+    return <Lobby onJoinRoom={handleJoinRoom} onStartOffline={handleStartOffline} />;
   }
 
   return (
     <div className="relative w-screen h-screen overflow-hidden">
       <Scene3D />
 
-      <GameOverModal onBackToLobby={handleLeaveRoom} />
+      <GameOverModal onBackToLobby={handleBackToHub} />
       
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-6 left-6 pointer-events-auto">
@@ -46,7 +57,7 @@ export default function Home() {
         </div>
         
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto flex items-center gap-3">
-          <GameControls onLeaveRoom={handleLeaveRoom} />
+          <GameControls onLeaveRoom={handleLeaveRoom} onBackToHub={handleBackToHub} />
         </div>
       </div>
     </div>

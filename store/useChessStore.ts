@@ -29,6 +29,7 @@ interface ChessState {
   gameStatus: GameStatus;
   moveHistory: string[];
   capturedPieces: { white: PieceType[]; black: PieceType[] };
+  isOffline: boolean;
   online: {
     roomId: string | null;
     myColor: 'w' | 'b' | null;
@@ -44,6 +45,8 @@ interface ChessState {
   undo: () => void;
   connectRoom: (roomId: string, myColor: 'w' | 'b') => void;
   disconnectRoom: () => void;
+  startOfflineGame: () => void;
+  quitToHub: () => void;
 }
 
 function initializePieces(game: Chess): ChessPiece[] {
@@ -89,12 +92,13 @@ export const useChessStore = create<ChessState>((set, get) => ({
     winner: null,
     reason: null,
   },
+  isOffline: false,
   
   selectSquare: (square: Square) => {
-    const { game, selectedSquare, online } = get();
+    const { game, selectedSquare, online, isOffline } = get();
     const currentTurn = game.turn();
     
-    if (online.roomId && online.myColor !== currentTurn) {
+    if (!isOffline && online.roomId && online.myColor !== currentTurn) {
       return;
     }
     
@@ -213,8 +217,8 @@ export const useChessStore = create<ChessState>((set, get) => ({
           capturedPieces: newCaptured,
         });
         
-        const { online } = get();
-        if (!isRemote && online.roomId) {
+        const { online, isOffline } = get();
+        if (!isRemote && online.roomId && !isOffline) {
           const lastMoveRef = ref(database, `rooms/${online.roomId}/gameState/lastMove`);
           update(lastMoveRef, {
             from,
@@ -344,5 +348,42 @@ export const useChessStore = create<ChessState>((set, get) => ({
       statusUnsubscribe = null;
     }
     set({ online: { roomId: null, myColor: null }, matchResult: { winner: null, reason: null } });
+  },
+  
+  startOfflineGame: () => {
+    const newGame = new Chess();
+    set({
+      game: newGame,
+      fen: newGame.fen(),
+      turn: newGame.turn(),
+      pieces: initializePieces(newGame),
+      selectedSquare: null,
+      legalMoves: [],
+      captureMoves: [],
+      gameStatus: 'active',
+      moveHistory: [],
+      capturedPieces: { white: [], black: [] },
+      isOffline: true,
+      matchResult: { winner: null, reason: null },
+    });
+  },
+  
+  quitToHub: () => {
+    const newGame = new Chess();
+    set({
+      game: newGame,
+      fen: newGame.fen(),
+      turn: newGame.turn(),
+      pieces: initializePieces(newGame),
+      selectedSquare: null,
+      legalMoves: [],
+      captureMoves: [],
+      gameStatus: 'active',
+      moveHistory: [],
+      capturedPieces: { white: [], black: [] },
+      isOffline: false,
+      online: { roomId: null, myColor: null },
+      matchResult: { winner: null, reason: null },
+    });
   },
 }));

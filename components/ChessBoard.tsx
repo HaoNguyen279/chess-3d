@@ -80,6 +80,7 @@ export function ChessBoard() {
         geometry={nodes.board.geometry}
         material={materials.chess_set_board}
         scale={PIECE_SCALE}
+        rotation={[0, -Math.PI / 2, 0]}
         receiveShadow
       />
       
