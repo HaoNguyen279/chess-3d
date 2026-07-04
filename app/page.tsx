@@ -1,15 +1,39 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import { Scene3D } from '@/components/Scene3D';
 import { GameHeader } from '@/components/ui/GameHeader';
 import { MoveHistory } from '@/components/ui/MoveHistory';
 import { CapturedPieces } from '@/components/ui/CapturedPieces';
 import { GameControls } from '@/components/ui/GameControls';
+import { GameOverModal } from '@/components/ui/GameOverModal';
+import { Lobby } from '@/components/ui/Lobby';
+import { useChessStore } from '@/store/useChessStore';
 
 export default function Home() {
+  const [gameSession, setGameSession] = useState<{ roomId: string; myColor: 'w' | 'b' } | null>(null);
+  const connectRoom = useChessStore((state) => state.connectRoom);
+  const disconnectRoom = useChessStore((state) => state.disconnectRoom);
+
+  const handleJoinRoom = useCallback((roomId: string, myColor: 'w' | 'b') => {
+    connectRoom(roomId, myColor);
+    setGameSession({ roomId, myColor });
+  }, [connectRoom]);
+
+  const handleLeaveRoom = useCallback(() => {
+    disconnectRoom();
+    setGameSession(null);
+  }, [disconnectRoom]);
+
+  if (!gameSession) {
+    return <Lobby onJoinRoom={handleJoinRoom} />;
+  }
+
   return (
     <div className="relative w-screen h-screen overflow-hidden">
       <Scene3D />
+
+      <GameOverModal onBackToLobby={handleLeaveRoom} />
       
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-6 left-6 pointer-events-auto">
@@ -21,8 +45,8 @@ export default function Home() {
           <MoveHistory />
         </div>
         
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto">
-          <GameControls />
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto flex items-center gap-3">
+          <GameControls onLeaveRoom={handleLeaveRoom} />
         </div>
       </div>
     </div>

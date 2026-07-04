@@ -15,6 +15,13 @@ const HIGHLIGHT_MATERIAL = new THREE.MeshBasicMaterial({
   depthWrite: false,
   side: THREE.DoubleSide,
 });
+const CAPTURE_MATERIAL = new THREE.MeshBasicMaterial({
+  color: '#e74c3c',
+  transparent: true,
+  opacity: 0.6,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+});
 const SELECTED_MATERIAL = new THREE.MeshBasicMaterial({
   color: '#f1c40f',
   transparent: true,
@@ -32,6 +39,7 @@ export function ChessSquare({ file, rank }: ChessSquareProps) {
   const selectSquare = useChessStore((state) => state.selectSquare);
   const selectedSquare = useChessStore((state) => state.selectedSquare);
   const legalMoves = useChessStore((state) => state.legalMoves);
+  const captureMoves = useChessStore((state) => state.captureMoves);
   
   const square = useMemo(() => {
     const files = 'abcdefgh';
@@ -45,9 +53,16 @@ export function ChessSquare({ file, rank }: ChessSquareProps) {
   }, [square]);
   
   const isSelected = square === selectedSquare;
+  const isCaptureMove = captureMoves.includes(square);
   const isLegalMove = legalMoves.includes(square);
   
-  const material = isSelected ? SELECTED_MATERIAL : isLegalMove ? HIGHLIGHT_MATERIAL : INVISIBLE_MATERIAL;
+  const material = isSelected 
+    ? SELECTED_MATERIAL 
+    : isCaptureMove 
+    ? CAPTURE_MATERIAL 
+    : isLegalMove 
+    ? HIGHLIGHT_MATERIAL 
+    : INVISIBLE_MATERIAL;
   
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();

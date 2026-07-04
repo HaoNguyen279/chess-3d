@@ -2,14 +2,52 @@
 
 import React from 'react';
 import { useChessStore } from '@/store/useChessStore';
+import { database } from '@/lib/firebase';
+import { ref, update } from 'firebase/database';
 
-export function GameControls() {
+interface GameControlsProps {
+  onLeaveRoom?: () => void;
+}
+
+export function GameControls({ onLeaveRoom }: GameControlsProps) {
   const reset = useChessStore((state) => state.reset);
   const undo = useChessStore((state) => state.undo);
   const moveHistory = useChessStore((state) => state.moveHistory);
-  
+  const online = useChessStore((state) => state.online);
+
   const canUndo = moveHistory.length > 0;
-  
+
+  const handleLeaveRoom = async () => {
+    if (!online.roomId) return;
+
+    try {
+      const roomRef = ref(database, `rooms/${online.roomId}`);
+      const opponentColor = online.myColor === 'w' ? 'b' : 'w';
+      
+      await update(roomRef, {
+        status: 'finished',
+        winner: opponentColor,
+        endReason: 'opponent_resigned',
+      });
+
+      onLeaveRoom?.();
+    } catch (error) {
+      console.error('Error leaving room:', error);
+      onLeaveRoom?.();
+    }
+  };
+
+  if (online.roomId) {
+    return (
+      <button
+        onClick={handleLeaveRoom}
+        className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors text-sm"
+      >
+        Rời phòng (Resign)
+      </button>
+    );
+  }
+
   return (
     <div className="flex gap-3">
       <button

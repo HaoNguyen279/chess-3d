@@ -4,7 +4,6 @@ import React, { useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { GLTF } from 'three-stdlib';
-import { Chess, Square } from 'chess.js';
 import { useChessStore, ChessPiece as ChessPieceType } from '@/store/useChessStore';
 import { ChessPiece } from './ChessPiece';
 import { ChessSquare } from './ChessSquare';
@@ -54,29 +53,7 @@ type GLTFResult = GLTF & {
 
 export function ChessBoard() {
   const { nodes, materials } = useGLTF('/models/source/chess_set_4k.gltf') as unknown as GLTFResult;
-  const fen = useChessStore((state) => state.fen);
-
-  const pieces = useMemo(() => {
-    const game = new Chess(fen);
-    const result: ChessPieceType[] = [];
-    
-    for (let rank = 0; rank < 8; rank++) {
-      for (let file = 0; file < 8; file++) {
-        const square = `${'abcdefgh'[file]}${rank + 1}` as Square;
-        const piece = game.get(square);
-        
-        if (piece) {
-          result.push({
-            type: piece.type,
-            color: piece.color,
-            square: square,
-          });
-        }
-      }
-    }
-    
-    return result;
-  }, [fen]);
+  const pieces = useChessStore((state) => state.pieces);
 
   const geometries = useMemo(() => ({
     w: {
@@ -112,9 +89,9 @@ export function ChessBoard() {
         ))
       )}
       
-      {pieces.map((piece, index) => (
+      {pieces.map((piece) => (
         <ChessPiece
-          key={`${piece.square}-${piece.type}-${piece.color}-${index}`}
+          key={piece.id}
           piece={piece}
           geometry={geometries[piece.color][piece.type]}
           material={materials[`chess_set_pieces_${piece.color === 'w' ? 'white' : 'black'}`]}
