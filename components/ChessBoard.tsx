@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { GLTF } from 'three-stdlib';
-import { Chess } from 'chess.js';
+import { Chess, Square } from 'chess.js';
 import { useChessStore, ChessPiece as ChessPieceType } from '@/store/useChessStore';
 import { ChessPiece } from './ChessPiece';
 import { ChessSquare } from './ChessSquare';
@@ -53,7 +53,7 @@ type GLTFResult = GLTF & {
 };
 
 export function ChessBoard() {
-  const { nodes, materials } = useGLTF('/models/source/chess_set_4k.gltf') as GLTFResult;
+  const { nodes, materials } = useGLTF('/models/source/chess_set_4k.gltf') as unknown as GLTFResult;
   const fen = useChessStore((state) => state.fen);
 
   const pieces = useMemo(() => {
@@ -62,7 +62,7 @@ export function ChessBoard() {
     
     for (let rank = 0; rank < 8; rank++) {
       for (let file = 0; file < 8; file++) {
-        const square = `${'abcdefgh'[file]}${rank + 1}` as const;
+        const square = `${'abcdefgh'[file]}${rank + 1}` as Square;
         const piece = game.get(square);
         
         if (piece) {
