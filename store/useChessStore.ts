@@ -1,7 +1,7 @@
 import { Chess, Square, Move } from 'chess.js';
 import { create } from 'zustand';
 import { database } from '@/lib/firebase';
-import { ref, onValue, update, Unsubscribe } from 'firebase/database';
+import { ref, onValue, update, Unsubscribe, get as firebaseGet, onDisconnect, remove } from 'firebase/database';
 
 export type PieceType = 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
 export type PieceColor = 'w' | 'b';
@@ -13,7 +13,7 @@ export interface ChessPiece {
   square: Square;
 }
 
-export type GameStatus = 'active' | 'check' | 'checkmate' | 'draw' | 'stalemate';
+export type GameStatus = 'active' | 'check' | 'checkmate' | 'draw' | 'stalemate' | 'timeout';
 
 let firebaseUnsubscribe: Unsubscribe | null = null;
 let statusUnsubscribe: Unsubscribe | null = null;
@@ -38,6 +38,11 @@ interface ChessState {
     winner: 'w' | 'b' | 'draw' | null;
     reason: string | null;
   };
+  roomStatus: 'waiting' | 'playing' | 'disconnected' | 'finished' | null;
+  playerCount: number;
+  players: { white?: string; black?: string } | null;
+  timeControl: string | null;
+  clocks: { white: number; black: number; lastMoveTime: number } | null;
   
   selectSquare: (square: Square) => void;
   movePiece: (from: Square, to: Square, isRemote?: boolean) => boolean;
@@ -45,8 +50,31 @@ interface ChessState {
   undo: () => void;
   connectRoom: (roomId: string, myColor: 'w' | 'b') => void;
   disconnectRoom: () => void;
-  startOfflineGame: () => void;
+  startOfflineGame: (timeControl?: string) => void;
   quitToHub: () => void;
+}
+
+export function parseTimeControl(control: string): { time: number; increment: number } {
+  const clean = control.replace(/\s+/g, '');
+  if (clean.includes('|')) {
+    const parts = clean.split('|');
+    const timeMins = parseFloat(parts[0]);
+    const incSecs = parseFloat(parts[1]);
+    return {
+      time: timeMins * 60 * 1000,
+      increment: incSecs * 1000,
+    };
+  } else if (clean.includes('min')) {
+    const timeMins = parseFloat(clean.replace('min', ''));
+    return {
+      time: timeMins * 60 * 1000,
+      increment: 0,
+    };
+  }
+  return {
+    time: 10 * 60 * 1000,
+    increment: 0,
+  };
 }
 
 function initializePieces(game: Chess): ChessPiece[] {
@@ -93,10 +121,19 @@ export const useChessStore = create<ChessState>((set, get) => ({
     reason: null,
   },
   isOffline: false,
+  roomStatus: null,
+  playerCount: 0,
+  players: null,
+  timeControl: null,
+  clocks: null,
   
   selectSquare: (square: Square) => {
-    const { game, selectedSquare, online, isOffline } = get();
+    const { game, selectedSquare, online, isOffline, roomStatus } = get();
     const currentTurn = game.turn();
+    
+    if (!isOffline && online.roomId && roomStatus !== 'playing') {
+      return;
+    }
     
     if (!isOffline && online.roomId && online.myColor !== currentTurn) {
       return;
@@ -134,13 +171,32 @@ export const useChessStore = create<ChessState>((set, get) => ({
   },
   
   movePiece: (from: Square, to: Square, isRemote: boolean = false) => {
-    const { game, pieces, capturedPieces, moveHistory } = get();
+    const { game, pieces, capturedPieces, moveHistory, isOffline, online, roomStatus, clocks: currentClocks, timeControl } = get();
+    
+    if (!isRemote && !isOffline && online.roomId && roomStatus !== 'playing') {
+      return false;
+    }
     
     try {
       const move = game.move({ from, to, promotion: 'q' });
       
       if (move) {
         let nextPieces = [...pieces];
+        
+        // Compute clocks deduction and transition
+        let nextClocks = currentClocks ? { ...currentClocks } : null;
+        if (nextClocks && timeControl) {
+          const config = parseTimeControl(timeControl);
+          const isFirstMove = moveHistory.length === 0;
+          const elapsed = isFirstMove ? 0 : (Date.now() - nextClocks.lastMoveTime);
+          
+          if (move.color === 'w') {
+            nextClocks.white = Math.max(0, nextClocks.white - elapsed + config.increment);
+          } else {
+            nextClocks.black = Math.max(0, nextClocks.black - elapsed + config.increment);
+          }
+          nextClocks.lastMoveTime = Date.now();
+        }
         
         // STEP 1: Remove captured piece FIRST
         if (move.captured) {
@@ -215,29 +271,35 @@ export const useChessStore = create<ChessState>((set, get) => ({
           gameStatus: status,
           moveHistory: [...moveHistory, move.san],
           capturedPieces: newCaptured,
+          clocks: nextClocks,
         });
         
         const { online, isOffline } = get();
         if (!isRemote && online.roomId && !isOffline) {
-          const lastMoveRef = ref(database, `rooms/${online.roomId}/gameState/lastMove`);
-          update(lastMoveRef, {
-            from,
-            to,
-            promotion: 'q',
-            fen: game.fen(),
-          }).catch((error) => {
+          const roomRef = ref(database, `rooms/${online.roomId}`);
+          const updates: any = {
+            'gameState/lastMove': {
+              from,
+              to,
+              promotion: 'q',
+              fen: game.fen(),
+            }
+          };
+          if (nextClocks) {
+            updates['clocks'] = nextClocks;
+          }
+          
+          update(roomRef, updates).catch((error) => {
             console.error('Firebase sync error:', error);
           });
           
           if (game.isCheckmate()) {
-            const roomRef = ref(database, `rooms/${online.roomId}`);
             update(roomRef, {
               status: 'finished',
               winner: move.color,
               endReason: 'checkmate',
             });
           } else if (game.isDraw() || game.isStalemate()) {
-            const roomRef = ref(database, `rooms/${online.roomId}`);
             update(roomRef, {
               status: 'finished',
               winner: 'draw',
@@ -257,7 +319,17 @@ export const useChessStore = create<ChessState>((set, get) => ({
   },
   
   reset: () => {
+    const { timeControl } = get();
     const newGame = new Chess();
+    let initialClocks = null;
+    if (timeControl) {
+      const config = parseTimeControl(timeControl);
+      initialClocks = {
+        white: config.time,
+        black: config.time,
+        lastMoveTime: Date.now()
+      };
+    }
     set({
       game: newGame,
       pieces: initializePieces(newGame),
@@ -269,6 +341,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
       gameStatus: 'active',
       moveHistory: [],
       capturedPieces: { white: [], black: [] },
+      clocks: initialClocks
     });
   },
   
@@ -307,23 +380,101 @@ export const useChessStore = create<ChessState>((set, get) => ({
   },
   
   connectRoom: (roomId: string, myColor: 'w' | 'b') => {
-    set({ online: { roomId, myColor }, matchResult: { winner: null, reason: null } });
+    // CRITICAL: Reset local chess game to initial position before joining any room.
+    // Without this, stale moves from a previous game remain in the chess.js instance.
+    const newGame = new Chess();
+    set({ 
+      game: newGame,
+      fen: newGame.fen(),
+      turn: 'w',
+      pieces: initializePieces(newGame),
+      selectedSquare: null,
+      legalMoves: [],
+      captureMoves: [],
+      gameStatus: 'active',
+      moveHistory: [],
+      capturedPieces: { white: [], black: [] },
+      online: { roomId, myColor }, 
+      matchResult: { winner: null, reason: null },
+      roomStatus: 'waiting',
+      playerCount: 1,
+      players: myColor === 'w' ? { white: 'placeholder' } : { black: 'placeholder' }
+    });
+    
+    // Set up disconnect listener to remove our player node if tab is closed
+    const myPlayerPath = myColor === 'w' ? 'players/white' : 'players/black';
+    const playerRef = ref(database, `rooms/${roomId}/${myPlayerPath}`);
+    onDisconnect(playerRef).remove();
     
     const lastMoveRef = ref(database, `rooms/${roomId}/gameState/lastMove`);
     firebaseUnsubscribe = onValue(lastMoveRef, (snapshot) => {
       const lastMove = snapshot.val();
+      
+      // Fresh room with no moves yet — nothing to sync
       if (!lastMove) return;
       
-      const { fen: localFen } = get();
-      if (lastMove.fen !== localFen) {
-        get().movePiece(lastMove.from, lastMove.to, true);
+      const { game, fen: localFen } = get();
+      
+      // Already in sync — skip
+      if (lastMove.fen === localFen) return;
+      
+      // Try applying the move normally (works during live play)
+      const moveSucceeded = get().movePiece(lastMove.from, lastMove.to, true);
+      
+      // If movePiece failed, we're desynced (F5 reconnect, or stale initial snapshot).
+      // Force-load the authoritative FEN from Firebase to recover.
+      if (!moveSucceeded) {
+        try {
+          game.load(lastMove.fen);
+          
+          let status: GameStatus = 'active';
+          if (game.isCheckmate()) status = 'checkmate';
+          else if (game.isDraw()) status = 'draw';
+          else if (game.isStalemate()) status = 'stalemate';
+          else if (game.isCheck()) status = 'check';
+          
+          set({
+            fen: game.fen(),
+            turn: game.turn(),
+            pieces: initializePieces(game),
+            gameStatus: status,
+            selectedSquare: null,
+            legalMoves: [],
+            captureMoves: [],
+          });
+        } catch (e) {
+          console.error('Failed to load FEN from Firebase:', e);
+        }
       }
     });
     
     const roomRef = ref(database, `rooms/${roomId}`);
     statusUnsubscribe = onValue(roomRef, (snapshot) => {
       const roomData = snapshot.val();
-      if (!roomData) return;
+      if (!roomData) {
+        set({ roomStatus: 'disconnected' });
+        return;
+      }
+      
+      const status = roomData.status as 'waiting' | 'playing' | 'finished';
+      const players = roomData.players || {};
+      const playerCount = roomData.playerCount || 0;
+      const dbClocks = roomData.clocks || null;
+      
+      // Strict client-side status resolution:
+      // If db says playing but one opponent is actually missing/disconnected, pause it.
+      let finalStatus: 'waiting' | 'playing' | 'disconnected' | 'finished' = status;
+      if (status === 'playing' && (!players.white || !players.black)) {
+        finalStatus = 'disconnected';
+      }
+      
+      set({ 
+        roomStatus: finalStatus,
+        playerCount: playerCount,
+        players: players,
+        clocks: dbClocks,
+        timeControl: roomData.timeControl || null
+      });
       
       if (roomData.status === 'finished' && roomData.winner) {
         let reason = '';
@@ -331,6 +482,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
         else if (roomData.endReason === 'opponent_resigned') reason = 'Đối thủ rời phòng';
         else if (roomData.endReason === 'stalemate') reason = 'Hết nước đi (Stalemate)';
         else if (roomData.endReason === 'draw') reason = 'Hòa';
+        else if (roomData.endReason === 'timeout') reason = 'Hết giờ (Timeout)';
         else reason = 'Game kết thúc';
         
         set({ matchResult: { winner: roomData.winner, reason } });
@@ -339,6 +491,33 @@ export const useChessStore = create<ChessState>((set, get) => ({
   },
   
   disconnectRoom: () => {
+    const { online } = get();
+    if (online.roomId && online.myColor) {
+      const roomRef = ref(database, `rooms/${online.roomId}`);
+      firebaseGet(roomRef).then((snapshot) => {
+        const roomData = snapshot.val();
+        if (roomData) {
+          const updates: any = {};
+          const newPlayerCount = Math.max(0, roomData.playerCount - 1);
+          updates[`playerCount`] = newPlayerCount;
+          
+          if (online.myColor === 'w') {
+            updates[`players/white`] = null;
+          } else {
+            updates[`players/black`] = null;
+          }
+          
+          if (newPlayerCount === 0) {
+            // Delete room if empty
+            remove(roomRef);
+          } else {
+            updates[`status`] = 'waiting';
+            update(roomRef, updates);
+          }
+        }
+      }).catch(err => console.error("Disconnect room error:", err));
+    }
+
     if (firebaseUnsubscribe) {
       firebaseUnsubscribe();
       firebaseUnsubscribe = null;
@@ -347,11 +526,28 @@ export const useChessStore = create<ChessState>((set, get) => ({
       statusUnsubscribe();
       statusUnsubscribe = null;
     }
-    set({ online: { roomId: null, myColor: null }, matchResult: { winner: null, reason: null } });
+    set({ 
+      online: { roomId: null, myColor: null }, 
+      matchResult: { winner: null, reason: null },
+      roomStatus: null,
+      playerCount: 0,
+      players: null,
+      timeControl: null,
+      clocks: null
+    });
   },
   
-  startOfflineGame: () => {
+  startOfflineGame: (timeControl?: string) => {
     const newGame = new Chess();
+    let initialClocks = null;
+    if (timeControl) {
+      const config = parseTimeControl(timeControl);
+      initialClocks = {
+        white: config.time,
+        black: config.time,
+        lastMoveTime: Date.now()
+      };
+    }
     set({
       game: newGame,
       fen: newGame.fen(),
@@ -365,6 +561,11 @@ export const useChessStore = create<ChessState>((set, get) => ({
       capturedPieces: { white: [], black: [] },
       isOffline: true,
       matchResult: { winner: null, reason: null },
+      roomStatus: null,
+      playerCount: 0,
+      players: null,
+      timeControl: timeControl || null,
+      clocks: initialClocks
     });
   },
   
@@ -384,6 +585,11 @@ export const useChessStore = create<ChessState>((set, get) => ({
       isOffline: false,
       online: { roomId: null, myColor: null },
       matchResult: { winner: null, reason: null },
+      roomStatus: null,
+      playerCount: 0,
+      players: null,
+      timeControl: null,
+      clocks: null
     });
   },
 }));

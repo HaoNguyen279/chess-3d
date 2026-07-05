@@ -10,49 +10,76 @@ interface GameOverModalProps {
 export function GameOverModal({ onBackToLobby }: GameOverModalProps) {
   const matchResult = useChessStore((state) => state.matchResult);
   const online = useChessStore((state) => state.online);
+  const isOffline = useChessStore((state) => state.isOffline);
   const disconnectRoom = useChessStore((state) => state.disconnectRoom);
 
-  if (!matchResult.winner || !online.roomId) return null;
+  // Show modal if there is a winner, regardless of online or offline mode
+  if (!matchResult.winner) return null;
 
-  const isPlayerWinner = matchResult.winner === online.myColor;
   const isDraw = matchResult.winner === 'draw';
+  const isOnline = !!online.roomId;
+  
+  let emoji: string = '🏆';
+  let title: string = 'Game Over';
+  let subtitle: string = matchResult.reason || 'Trận đấu kết thúc';
 
-  let emoji: string;
-  let title: string;
-  let subtitle: string;
-
-  if (isDraw) {
-    emoji = '🤝';
-    title = 'Hòa!';
-    subtitle = matchResult.reason || 'Ván cờ kết thúc với tỷ số hòa';
-  } else if (isPlayerWinner) {
-    emoji = '🎉';
-    title = 'Chiến thắng!';
-    subtitle = matchResult.reason || 'Bạn đã đánh bại đối thủ';
+  if (isOnline) {
+    const isPlayerWinner = matchResult.winner === online.myColor;
+    if (isDraw) {
+      emoji = '🤝';
+      title = 'Hòa!';
+      subtitle = matchResult.reason || 'Ván cờ kết thúc với tỷ số hòa';
+    } else if (isPlayerWinner) {
+      emoji = '🎉';
+      title = 'Chiến thắng!';
+      subtitle = matchResult.reason || 'Bạn đã đánh bại đối thủ';
+    } else {
+      emoji = '💀';
+      title = 'Thất bại!';
+      subtitle = matchResult.reason || 'Đối thủ đã đánh bại bạn';
+    }
   } else {
-    emoji = '💀';
-    title = 'Bạn đã thua!';
-    subtitle = matchResult.reason || 'Đối thủ đã đánh bại bạn';
+    // Offline mode
+    if (isDraw) {
+      emoji = '🤝';
+      title = 'Hòa!';
+      subtitle = matchResult.reason || 'Ván cờ hòa';
+    } else {
+      emoji = '🏆';
+      title = matchResult.winner === 'w' ? 'Trắng thắng!' : 'Đen thắng!';
+      subtitle = matchResult.reason || (matchResult.winner === 'w' ? 'Quân Trắng giành chiến thắng' : 'Quân Đen giành chiến thắng');
+    }
   }
 
   const handleBackToLobby = () => {
-    disconnectRoom();
+    if (isOnline) {
+      disconnectRoom();
+    }
     onBackToLobby();
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 rounded-xl p-8 w-full max-w-md text-center border border-gray-700 shadow-2xl">
-        <div className="text-6xl mb-4">{emoji}</div>
+    <div className="fixed inset-0 bg-[#070f15]/90 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+      <div className="bg-[#0c141a] border border-[#414942] rounded-3xl p-8 w-full max-w-md text-center shadow-2xl relative overflow-hidden">
+        {/* Decorative top colored strip */}
+        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#a8d638] to-transparent" />
         
-        <h2 className="text-3xl font-bold text-white mb-2">{title}</h2>
+        <div className="text-7xl mb-5 drop-shadow-[0_0_15px_rgba(168,214,56,0.2)] select-none">
+          {emoji}
+        </div>
         
-        <p className="text-gray-300 text-lg mb-6">{subtitle}</p>
+        <h2 className="text-3xl font-black text-white mb-3 tracking-tight">
+          {title}
+        </h2>
+        
+        <p className="text-[#c1c9c0] text-sm leading-relaxed mb-8 max-w-xs mx-auto">
+          {subtitle}
+        </p>
         
         <div className="flex justify-center">
           <button
             onClick={handleBackToLobby}
-            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors text-lg"
+            className="w-full py-3.5 bg-[#a8d638] text-[#263500] font-black rounded-xl hover:brightness-110 active:scale-[0.97] transition-all text-base shadow-[0_4px_20px_rgba(168,214,56,0.25)]"
           >
             Quay lại Sảnh
           </button>

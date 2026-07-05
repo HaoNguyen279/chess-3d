@@ -55,6 +55,49 @@ export function ChessBoard() {
   const { nodes, materials } = useGLTF('/models/source/chess_set_4k.gltf') as unknown as GLTFResult;
   const pieces = useChessStore((state) => state.pieces);
 
+  // Upgrade standard materials to physical materials to enable high-quality clearcoat lacquer reflections
+  const physicalMaterials = useMemo(() => {
+    if (!materials) return null;
+
+    const whiteMat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color('#fcfaf2'), // polished warm ivory
+      map: materials.chess_set_pieces_white.map,
+      normalMap: materials.chess_set_pieces_white.normalMap,
+      roughnessMap: materials.chess_set_pieces_white.roughnessMap,
+      roughness: 0.18,
+      metalness: 0.1,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.08,
+    });
+
+    const blackMat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color('#141416'), // rich obsidian charcoal black
+      map: materials.chess_set_pieces_black.map,
+      normalMap: materials.chess_set_pieces_black.normalMap,
+      roughnessMap: materials.chess_set_pieces_black.roughnessMap,
+      roughness: 0.14,
+      metalness: 0.15,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.04,
+    });
+
+    const boardMat = new THREE.MeshPhysicalMaterial({
+      map: materials.chess_set_board.map,
+      normalMap: materials.chess_set_board.normalMap,
+      roughnessMap: materials.chess_set_board.roughnessMap,
+      roughness: 0.25,
+      metalness: 0.0,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.12,
+    });
+
+    return {
+      white: whiteMat,
+      black: blackMat,
+      board: boardMat,
+    };
+  }, [materials]);
+
   const geometries = useMemo(() => ({
     w: {
       p: nodes.piece_pawn_white_01.geometry,
@@ -78,7 +121,7 @@ export function ChessBoard() {
     <group>
       <mesh
         geometry={nodes.board.geometry}
-        material={materials.chess_set_board}
+        material={physicalMaterials ? physicalMaterials.board : materials.chess_set_board}
         scale={PIECE_SCALE}
         rotation={[0, -Math.PI / 2, 0]}
         receiveShadow
@@ -95,7 +138,13 @@ export function ChessBoard() {
           key={piece.id}
           piece={piece}
           geometry={geometries[piece.color][piece.type]}
-          material={materials[`chess_set_pieces_${piece.color === 'w' ? 'white' : 'black'}`]}
+          material={
+            physicalMaterials
+              ? piece.color === 'w'
+                ? physicalMaterials.white
+                : physicalMaterials.black
+              : materials[`chess_set_pieces_${piece.color === 'w' ? 'white' : 'black'}`]
+          }
         />
       ))}
     </group>
