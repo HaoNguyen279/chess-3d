@@ -6,6 +6,7 @@ import { ref, onValue, push, set, update, get } from 'firebase/database';
 import { parseTimeControl } from '@/store/useChessStore';
 import { LobbyModel } from './LobbyModel';
 import { PlayWithAI } from './PlayWithAI';
+import { Leaderboard } from './Leaderboard';
 
 interface Room {
   id: string;
@@ -23,9 +24,10 @@ interface Room {
 interface LobbyProps {
   onJoinRoom: (roomId: string, color: 'w' | 'b') => void;
   onStartOffline?: (timeControl: string) => void;
+  onPlayBot?: (botId: string, elo: number) => void;
 }
 
-export function Lobby({ onJoinRoom, onStartOffline }: LobbyProps) {
+export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -41,7 +43,7 @@ export function Lobby({ onJoinRoom, onStartOffline }: LobbyProps) {
   // Selected time control (default to '10 min' )
   const [selectedControl, setSelectedControl] = useState<string>('10 min');
   const [roomCodeInput, setRoomCodeInput] = useState('');
-  const [currentTab, setCurrentTab] = useState<'play' | 'ai'>('play');
+  const [currentTab, setCurrentTab] = useState<'play' | 'ai' | 'leaderboard'>('play');
 
   useEffect(() => {
     let storedUserId = localStorage.getItem('chess_user_id');
@@ -357,16 +359,13 @@ export function Lobby({ onJoinRoom, onStartOffline }: LobbyProps) {
             <span className="material-symbols-outlined">videogame_asset</span>
             <span className="text-xs font-medium tracking-wide">Play</span>
           </a>
-          <a 
-            className={`flex items-center gap-3 px-3 py-2 rounded font-medium transition-all duration-200 cursor-pointer ${currentTab === 'ai' ? 'text-secondary border-l-4 border-secondary bg-secondary-container-20' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'}`}
-            onClick={() => setCurrentTab('ai')}
-          >
+          <a className={`flex items-center gap-3 px-3 py-2 rounded font-medium transition-colors duration-200 ${currentTab === 'ai' ? 'bg-secondary/10 text-secondary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'}`} href="#" onClick={(e) => { e.preventDefault(); setCurrentTab('ai'); }}>
             <span className="material-symbols-outlined">smart_toy</span>
-            <span className="text-xs font-medium tracking-wide">Play AI</span>
+            <span className="text-xs font-medium tracking-wide">Play with AI</span>
           </a>
-          <a className="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container-highest transition-colors duration-200" href="#" onClick={(e) => { e.preventDefault(); alert('Puzzles coming soon!'); }}>
-            <span className="material-symbols-outlined">extension</span>
-            <span className="text-xs font-medium tracking-wide">Puzzles</span>
+          <a className={`flex items-center gap-3 px-3 py-2 rounded font-medium transition-colors duration-200 ${currentTab === 'leaderboard' ? 'bg-secondary/10 text-secondary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'}`} href="#" onClick={(e) => { e.preventDefault(); setCurrentTab('leaderboard'); }}>
+            <span className="material-symbols-outlined">leaderboard</span>
+            <span className="text-xs font-medium tracking-wide">Leaderboard</span>
           </a>
           <a className="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container-highest transition-colors duration-200" href="#" onClick={(e) => { e.preventDefault(); alert('Tutorials coming soon!'); }}>
             <span className="material-symbols-outlined">school</span>
@@ -413,9 +412,13 @@ export function Lobby({ onJoinRoom, onStartOffline }: LobbyProps) {
         </div>
       </aside>
 
-      {currentTab === 'ai' ? (
+      {currentTab === 'leaderboard' ? (
+        <main className="ml-64 mr-[400px] h-screen overflow-hidden relative z-10">
+          <Leaderboard />
+        </main>
+      ) : currentTab === 'ai' ? (
         <PlayWithAI onPlayBot={(botId, elo) => {
-          alert(`Starting match with ${botId} (ELO: ${elo}). Game mode coming soon!`);
+          onPlayBot?.(botId, elo);
         }} />
       ) : (
         <>

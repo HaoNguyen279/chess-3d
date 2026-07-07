@@ -34,6 +34,8 @@ export function GameHeader({ type }: GameHeaderProps) {
   const players = useChessStore((state) => state.players);
   const clocks = useChessStore((state) => state.clocks);
   const isOffline = useChessStore((state) => state.isOffline);
+  const isAI = useChessStore((state) => state.isAI);
+  const aiBotElo = useChessStore((state) => state.aiBotElo);
   const roomStatus = useChessStore((state) => state.roomStatus);
   const moveHistory = useChessStore((state) => state.moveHistory);
 
@@ -67,7 +69,13 @@ export function GameHeader({ type }: GameHeaderProps) {
 
   // Player Name / Role text
   let displayName = '';
-  if (onlineRoomId) {
+  if (isAI) {
+    if (type === 'self') {
+      displayName = `Bạn (${colorText})`;
+    } else {
+      displayName = `AI Bot (${aiBotElo} ELO)`;
+    }
+  } else if (onlineRoomId) {
     if (type === 'self') {
       displayName = `Bạn (${colorText})`;
     } else {
@@ -193,7 +201,9 @@ export function GameHeader({ type }: GameHeaderProps) {
                 {formatTime(timeValue)}
               </span>
             ) : (
-              <span className="text-xs font-semibold text-slate-500 italic">Vô hạn</span>
+              <span className={`text-xl font-bold font-mono px-2.5 py-1 rounded-xl transition-all tracking-wide ${isCardTurn ? 'bg-[#a8d638]/15 text-[#a8d638]' : 'bg-[#070f15]/80 text-slate-400'}`}>
+                ∞
+              </span>
             )}
           </div>
         </div>

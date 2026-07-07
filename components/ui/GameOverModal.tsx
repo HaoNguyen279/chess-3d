@@ -11,10 +11,14 @@ export function GameOverModal({ onBackToLobby }: GameOverModalProps) {
   const matchResult = useChessStore((state) => state.matchResult);
   const online = useChessStore((state) => state.online);
   const isOffline = useChessStore((state) => state.isOffline);
+  const isAI = useChessStore((state) => state.isAI);
+  const aiBotId = useChessStore((state) => state.aiBotId);
   const disconnectRoom = useChessStore((state) => state.disconnectRoom);
+  const isReviewing = useChessStore((state) => state.isReviewing);
+  const startReview = useChessStore((state) => state.startReview);
 
   // Show modal if there is a winner, regardless of online or offline mode
-  if (!matchResult.winner) return null;
+  if (!matchResult.winner || isReviewing) return null;
 
   const isDraw = matchResult.winner === 'draw';
   const isOnline = !!online.roomId;
@@ -23,7 +27,24 @@ export function GameOverModal({ onBackToLobby }: GameOverModalProps) {
   let title: string = 'Game Over';
   let subtitle: string = matchResult.reason || 'Trận đấu kết thúc';
 
-  if (isOnline) {
+  if (isAI) {
+    const isPlayerWinner = matchResult.winner === 'w'; // Player is always white
+    const botName = aiBotId ? (aiBotId.charAt(0).toUpperCase() + aiBotId.slice(1)) : 'Bot';
+    
+    if (isDraw) {
+      emoji = '🤝';
+      title = 'Hòa!';
+      subtitle = matchResult.reason || `Ván cờ hòa với ${botName}`;
+    } else if (isPlayerWinner) {
+      emoji = '🎉';
+      title = 'Chiến thắng!';
+      subtitle = matchResult.reason || `Bạn đã đánh bại ${botName}`;
+    } else {
+      emoji = '💀';
+      title = 'Thất bại!';
+      subtitle = matchResult.reason || `${botName} đã đánh bại bạn`;
+    }
+  } else if (isOnline) {
     const isPlayerWinner = matchResult.winner === online.myColor;
     if (isDraw) {
       emoji = '🤝';
@@ -76,7 +97,14 @@ export function GameOverModal({ onBackToLobby }: GameOverModalProps) {
           {subtitle}
         </p>
         
-        <div className="flex justify-center">
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={startReview}
+            className="w-full py-3.5 bg-[#1a232c] text-white border border-[#414942] font-bold rounded-xl hover:bg-[#232b31] active:scale-[0.97] transition-all text-base shadow-sm"
+          >
+            Xem lại ván đấu
+          </button>
+          
           <button
             onClick={handleBackToLobby}
             className="w-full py-3.5 bg-[#a8d638] text-[#263500] font-black rounded-xl hover:brightness-110 active:scale-[0.97] transition-all text-base shadow-[0_4px_20px_rgba(168,214,56,0.25)]"

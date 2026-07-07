@@ -15,7 +15,9 @@ export function GameControls({ onLeaveRoom, onBackToHub }: GameControlsProps) {
   const undo = useChessStore((state) => state.undo);
   const moveHistory = useChessStore((state) => state.moveHistory);
   const isOffline = useChessStore((state) => state.isOffline);
+  const isAI = useChessStore((state) => state.isAI);
   const online = useChessStore((state) => state.online);
+  const isReviewing = useChessStore((state) => state.isReviewing);
   const triggerCameraReset = useChessStore((state) => state.triggerCameraReset);
 
   const canUndo = moveHistory.length > 0;
@@ -27,11 +29,14 @@ export function GameControls({ onLeaveRoom, onBackToHub }: GameControlsProps) {
       const roomRef = ref(database, `rooms/${online.roomId}`);
       const opponentColor = online.myColor === 'w' ? 'b' : 'w';
       
-      await update(roomRef, {
-        status: 'finished',
-        winner: opponentColor,
-        endReason: 'opponent_resigned',
-      });
+      const state = useChessStore.getState();
+      if (!state.matchResult.winner) {
+        await update(roomRef, {
+          status: 'finished',
+          winner: opponentColor,
+          endReason: 'opponent_resigned',
+        });
+      }
 
       onLeaveRoom?.();
     } catch (error) {
@@ -39,6 +44,46 @@ export function GameControls({ onLeaveRoom, onBackToHub }: GameControlsProps) {
       onLeaveRoom?.();
     }
   };
+
+  // Review mode
+  if (isReviewing) {
+    return (
+      <div className="flex gap-3">
+        <button
+          onClick={online.roomId ? handleLeaveRoom : onBackToHub}
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors text-sm"
+        >
+          Thoát trận
+        </button>
+        <button
+          onClick={triggerCameraReset}
+          className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors text-sm"
+        >
+          Default View
+        </button>
+      </div>
+    );
+  }
+
+  // AI mode: only Back to Hub + Default View
+  if (isAI) {
+    return (
+      <div className="flex gap-3">
+        <button
+          onClick={onBackToHub}
+          className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors text-sm"
+        >
+          ← Hub
+        </button>
+        <button
+          onClick={triggerCameraReset}
+          className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors text-sm"
+        >
+          Default View
+        </button>
+      </div>
+    );
+  }
 
   if (isOffline) {
     return (

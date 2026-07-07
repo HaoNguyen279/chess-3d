@@ -10,14 +10,18 @@ import { GameOverModal } from '@/components/ui/GameOverModal';
 import { Lobby } from '@/components/ui/Lobby';
 import { useChessStore } from '@/store/useChessStore';
 import { useChessSounds } from '@/lib/useChessSounds';
+import { useAIPlayer } from '@/lib/useAIPlayer';
 
 export default function Home() {
   useChessSounds();
+  useAIPlayer();
   const [gameSession, setGameSession] = useState<{ roomId: string; myColor: 'w' | 'b' } | null>(null);
   const connectRoom = useChessStore((state) => state.connectRoom);
   const disconnectRoom = useChessStore((state) => state.disconnectRoom);
   const isOffline = useChessStore((state) => state.isOffline);
+  const isAI = useChessStore((state) => state.isAI);
   const startOfflineGame = useChessStore((state) => state.startOfflineGame);
+  const startAIGame = useChessStore((state) => state.startAIGame);
   const quitToHub = useChessStore((state) => state.quitToHub);
 
   const online = useChessStore((state) => state.online);
@@ -49,13 +53,17 @@ export default function Home() {
     startOfflineGame(timeControl);
   }, [startOfflineGame]);
 
+  const handlePlayBot = useCallback((botId: string, elo: number) => {
+    startAIGame(botId, elo);
+  }, [startAIGame]);
+
   const handleBackToHub = useCallback(() => {
     quitToHub();
     setGameSession(null);
   }, [quitToHub]);
 
-  if (!gameSession && !isOffline) {
-    return <Lobby onJoinRoom={handleJoinRoom} onStartOffline={handleStartOffline} />;
+  if (!gameSession && !isOffline && !isAI) {
+    return <Lobby onJoinRoom={handleJoinRoom} onStartOffline={handleStartOffline} onPlayBot={handlePlayBot} />;
   }
 
   return (

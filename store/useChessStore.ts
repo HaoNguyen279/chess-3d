@@ -30,6 +30,10 @@ interface ChessState {
   moveHistory: string[];
   capturedPieces: { white: PieceType[]; black: PieceType[] };
   isOffline: boolean;
+  isAI: boolean;
+  aiColor: 'w' | 'b' | null;
+  aiBotId: string | null;
+  aiBotElo: number | null;
   online: {
     roomId: string | null;
     myColor: 'w' | 'b' | null;
@@ -38,6 +42,7 @@ interface ChessState {
     winner: 'w' | 'b' | 'draw' | null;
     reason: string | null;
   };
+  isReviewing: boolean;
   roomStatus: 'waiting' | 'playing' | 'disconnected' | 'finished' | null;
   playerCount: number;
   players: { white?: string; black?: string } | null;
@@ -51,7 +56,9 @@ interface ChessState {
   connectRoom: (roomId: string, myColor: 'w' | 'b') => void;
   disconnectRoom: () => void;
   startOfflineGame: (timeControl?: string) => void;
+  startAIGame: (botId: string, botElo: number) => void;
   quitToHub: () => void;
+  startReview: () => void;
   cameraResetTrigger: number;
   triggerCameraReset: () => void;
 }
@@ -122,7 +129,12 @@ export const useChessStore = create<ChessState>((set, get) => ({
     winner: null,
     reason: null,
   },
+  isReviewing: false,
   isOffline: false,
+  isAI: false,
+  aiColor: null,
+  aiBotId: null,
+  aiBotElo: null,
   roomStatus: null,
   playerCount: 0,
   players: null,
@@ -133,14 +145,24 @@ export const useChessStore = create<ChessState>((set, get) => ({
   triggerCameraReset: () => set((state) => ({ cameraResetTrigger: state.cameraResetTrigger + 1 })),
   
   selectSquare: (square: Square) => {
-    const { game, selectedSquare, online, isOffline, roomStatus } = get();
+    const { game, selectedSquare, online, isOffline, isAI, aiColor, roomStatus, matchResult } = get();
     const currentTurn = game.turn();
     
-    if (!isOffline && online.roomId && roomStatus !== 'playing') {
+    // Block selection if game is over
+    if (matchResult.winner) {
+      return;
+    }
+
+    // Block selection during AI's turn
+    if (isAI && currentTurn === aiColor) {
       return;
     }
     
-    if (!isOffline && online.roomId && online.myColor !== currentTurn) {
+    if (!isOffline && !isAI && online.roomId && roomStatus !== 'playing') {
+      return;
+    }
+    
+    if (!isOffline && !isAI && online.roomId && online.myColor !== currentTurn) {
       return;
     }
     
@@ -266,7 +288,8 @@ export const useChessStore = create<ChessState>((set, get) => ({
           status = 'check';
         }
         
-        set({
+        // Build the state update
+        const stateUpdate: Partial<ChessState> = {
           pieces: nextPieces,
           fen: game.fen(),
           turn: game.turn(),
@@ -277,7 +300,21 @@ export const useChessStore = create<ChessState>((set, get) => ({
           moveHistory: [...moveHistory, move.san],
           capturedPieces: newCaptured,
           clocks: nextClocks,
-        });
+        };
+        
+        // Set matchResult for AI and offline modes when game ends
+        const { isAI: currentIsAI, isOffline: currentIsOffline } = get();
+        if ((currentIsAI || currentIsOffline) && (status === 'checkmate' || status === 'draw' || status === 'stalemate')) {
+          if (status === 'checkmate') {
+            stateUpdate.matchResult = { winner: move.color, reason: 'Chiếu hết (Checkmate)' };
+          } else if (status === 'stalemate') {
+            stateUpdate.matchResult = { winner: 'draw', reason: 'Hết nước đi (Stalemate)' };
+          } else {
+            stateUpdate.matchResult = { winner: 'draw', reason: 'Hòa (Draw)' };
+          }
+        }
+        
+        set(stateUpdate);
         
         const { online, isOffline } = get();
         if (!isRemote && online.roomId && !isOffline) {
@@ -574,7 +611,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
     });
   },
   
-  quitToHub: () => {
+  startAIGame: (botId: string, botElo: number) => {
     const newGame = new Chess();
     set({
       game: newGame,
@@ -588,13 +625,35 @@ export const useChessStore = create<ChessState>((set, get) => ({
       moveHistory: [],
       capturedPieces: { white: [], black: [] },
       isOffline: false,
-      online: { roomId: null, myColor: null },
+      isAI: true,
+      aiColor: 'b',
+      aiBotId: botId,
+      aiBotElo: botElo,
+      online: { roomId: null, myColor: 'w' },
       matchResult: { winner: null, reason: null },
       roomStatus: null,
       playerCount: 0,
       players: null,
       timeControl: null,
-      clocks: null
+      clocks: null,
     });
+  },
+  
+  quitToHub: () => {
+    set({ 
+      isOffline: false, 
+      isAI: false,
+      aiBotId: null,
+      aiBotElo: null,
+      aiColor: null,
+      online: { roomId: null, myColor: null },
+      matchResult: { winner: null, reason: null },
+      isReviewing: false
+    });
+    get().reset();
+  },
+
+  startReview: () => {
+    set({ isReviewing: true });
   },
 }));
