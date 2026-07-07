@@ -71,7 +71,7 @@ export function ChessBoard() {
     });
 
     const blackMat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color('#141416'), // rich obsidian charcoal black
+      color: new THREE.Color('#3737cc'), // rich obsidian charcoal black
       map: materials.chess_set_pieces_black.map,
       normalMap: materials.chess_set_pieces_black.normalMap,
       roughnessMap: materials.chess_set_pieces_black.roughnessMap,

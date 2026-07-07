@@ -5,6 +5,7 @@ import { database } from '@/lib/firebase';
 import { ref, onValue, push, set, update, get } from 'firebase/database';
 import { parseTimeControl } from '@/store/useChessStore';
 import { LobbyModel } from './LobbyModel';
+import { PlayWithAI } from './PlayWithAI';
 
 interface Room {
   id: string;
@@ -37,9 +38,10 @@ export function Lobby({ onJoinRoom, onStartOffline }: LobbyProps) {
   const [userId, setUserId] = useState('');
   const [showNoRoomModal, setShowNoRoomModal] = useState(false);
 
-  // Selected time control (default to '2 | 1' as in des.html)
-  const [selectedControl, setSelectedControl] = useState<string>('2 | 1');
+  // Selected time control (default to '10 min' )
+  const [selectedControl, setSelectedControl] = useState<string>('10 min');
   const [roomCodeInput, setRoomCodeInput] = useState('');
+  const [currentTab, setCurrentTab] = useState<'play' | 'ai'>('play');
 
   useEffect(() => {
     let storedUserId = localStorage.getItem('chess_user_id');
@@ -348,9 +350,19 @@ export function Lobby({ onJoinRoom, onStartOffline }: LobbyProps) {
           <h1 className="text-2xl font-black text-secondary tracking-wide">Chess3D ♕</h1>
         </div>
         <nav className="flex-1 space-y-1">
-          <a className="flex items-center gap-3 px-3 py-2 rounded text-secondary font-bold border-l-4 border-secondary bg-secondary-container-20 transition-all duration-200" href="#">
+          <a 
+            className={`flex items-center gap-3 px-3 py-2 rounded font-bold transition-all duration-200 cursor-pointer ${currentTab === 'play' ? 'text-secondary border-l-4 border-secondary bg-secondary-container-20' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'}`}
+            onClick={() => setCurrentTab('play')}
+          >
             <span className="material-symbols-outlined">videogame_asset</span>
             <span className="text-xs font-medium tracking-wide">Play</span>
+          </a>
+          <a 
+            className={`flex items-center gap-3 px-3 py-2 rounded font-medium transition-all duration-200 cursor-pointer ${currentTab === 'ai' ? 'text-secondary border-l-4 border-secondary bg-secondary-container-20' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'}`}
+            onClick={() => setCurrentTab('ai')}
+          >
+            <span className="material-symbols-outlined">smart_toy</span>
+            <span className="text-xs font-medium tracking-wide">Play AI</span>
           </a>
           <a className="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container-highest transition-colors duration-200" href="#" onClick={(e) => { e.preventDefault(); alert('Puzzles coming soon!'); }}>
             <span className="material-symbols-outlined">extension</span>
@@ -401,8 +413,14 @@ export function Lobby({ onJoinRoom, onStartOffline }: LobbyProps) {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="ml-64 mr-[400px] h-screen flex flex-col p-16 gap-10 items-center justify-center relative">
+      {currentTab === 'ai' ? (
+        <PlayWithAI onPlayBot={(botId, elo) => {
+          alert(`Starting match with ${botId} (ELO: ${elo}). Game mode coming soon!`);
+        }} />
+      ) : (
+        <>
+          {/* Main Content Area */}
+          <main className="ml-64 mr-[400px] h-screen flex flex-col p-16 gap-10 items-center justify-center relative">
         {/* Center: 3D Chess Set Showcase */}
         <div className="relative w-full max-w-3xl aspect-square flex items-center justify-center select-none">
           <div className="absolute inset-0 bg-secondary/5 rounded-full blur-[120px] pointer-events-none"></div>
@@ -421,9 +439,9 @@ export function Lobby({ onJoinRoom, onStartOffline }: LobbyProps) {
       <aside className="w-[400px] fixed right-0 top-0 h-screen bg-surface-container-lowest border-l border-outline-variant p-6 flex flex-col gap-6 z-20 overflow-y-auto custom-scrollbar">
         {/* Mode Selection Grid */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2 text-on-surface-variant opacity-60">
-            <span className="material-symbols-outlined text-sm">schedule</span>
-            <h3 className="text-xs font-mono uppercase tracking-widest font-bold">Select mode</h3>
+          <div className="flex items-center gap-2 text-on-surface-variant">
+            <h3 className="text-[20px] font-black uppercase tracking-widest text-secondary">Select mode</h3>
+            <span className="material-symbols-outlined text-sm text-secondary">schedule</span>
           </div>
 
           {/* Bullet */}
@@ -538,7 +556,7 @@ export function Lobby({ onJoinRoom, onStartOffline }: LobbyProps) {
           <div className="grid grid-cols-2 gap-2">
             <button 
               onClick={() => setShowCreateModal(true)}
-              className="flex flex-col items-center justify-center gap-1 py-3 border border-outline-variant text-on-surface rounded-xl hover:bg-surface-container-highest transition-all group"
+              className="mode-card flex flex-col items-center justify-center gap-1 py-3 border border-outline-variant text-on-surface rounded-xl hover:bg-surface-container-highest transition-all group"
             >
               <span className="material-symbols-outlined text-on-surface-variant group-hover:text-secondary">add_circle</span>
               <span className="text-[11px] font-bold">Create Room</span>
@@ -546,7 +564,7 @@ export function Lobby({ onJoinRoom, onStartOffline }: LobbyProps) {
             
             <button 
               onClick={() => setShowSearchModal(true)}
-              className="flex flex-col items-center justify-center gap-1 py-3 border border-outline-variant text-on-surface rounded-xl hover:bg-surface-container-highest transition-all group"
+              className="mode-card flex flex-col items-center justify-center gap-1 py-3 border border-outline-variant text-on-surface rounded-xl hover:bg-surface-container-highest transition-all group"
             >
               <span className="material-symbols-outlined text-on-surface-variant group-hover:text-secondary">search</span>
               <span className="text-[11px] font-bold">Find Room</span>
@@ -554,8 +572,8 @@ export function Lobby({ onJoinRoom, onStartOffline }: LobbyProps) {
           </div>
 
           <button 
-            onClick={() => alert('Feature coming soon!')}
-            className="w-full flex items-center justify-center gap-4 py-3 bg-surface-container-high border border-outline-variant text-on-surface rounded-xl hover:bg-surface-container-highest transition-all group"
+            onClick={() => setCurrentTab('ai')}
+            className="mode-card w-full flex items-center justify-center gap-4 py-3 bg-surface-container-high border border-outline-variant text-on-surface rounded-xl hover:bg-surface-container-highest transition-all group"
           >
             <span className="material-symbols-outlined text-on-surface-variant group-hover:text-secondary">smart_toy</span>
             <span className="text-sm font-bold">Play with AI</span>
@@ -563,7 +581,7 @@ export function Lobby({ onJoinRoom, onStartOffline }: LobbyProps) {
           
           <button 
             onClick={() => onStartOffline?.(selectedControl)}
-            className="w-full flex items-center justify-center gap-4 py-3 bg-surface-container-high border border-outline-variant text-on-surface rounded-xl hover:bg-surface-container-highest transition-all group"
+            className="mode-card w-full flex items-center justify-center gap-4 py-3 bg-surface-container-high border border-outline-variant text-on-surface rounded-xl hover:bg-surface-container-highest transition-all group"
           >
             <span className="material-symbols-outlined text-on-surface-variant group-hover:text-secondary">groups</span>
             <span className="text-sm font-bold">1 Device 2 Players</span>
@@ -597,7 +615,7 @@ export function Lobby({ onJoinRoom, onStartOffline }: LobbyProps) {
       </aside>
 
       {/* Footer */}
-      <footer className="fixed bottom-0 left-64 right-[400px] py-2 bg-surface-container-lowest/50 backdrop-blur-sm border-t border-outline-variant z-10">
+      <footer className={`fixed bottom-0 left-64 ${currentTab === 'play' ? 'right-[400px]' : 'right-0'} py-2 bg-surface-container-lowest/50 backdrop-blur-sm border-t border-outline-variant z-10`}>
         <div className="flex justify-between items-center max-w-7xl mx-auto px-10">
           <span className="font-mono text-[10px] text-secondary">© 2026 Chess3D</span>
           <div className="flex gap-4">
@@ -607,6 +625,8 @@ export function Lobby({ onJoinRoom, onStartOffline }: LobbyProps) {
           </div>
         </div>
       </footer>
+        </>
+      )}
 
       {/* --- MODAL: CREATE ROOM --- */}
       {showCreateModal && (

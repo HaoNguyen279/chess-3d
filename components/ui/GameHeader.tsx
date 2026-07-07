@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useChessStore, GameStatus } from '@/store/useChessStore';
+import { useChessStore } from '@/store/useChessStore';
 import { database } from '@/lib/firebase';
 import { ref, update } from 'firebase/database';
 
 function formatTime(ms: number): string {
   if (ms <= 0) return '00:00.0';
-  
+
   const totalSeconds = ms / 1000;
-  
+
   if (totalSeconds < 60) {
     const seconds = Math.floor(totalSeconds);
     const tenths = Math.floor((ms % 1000) / 100);
@@ -23,7 +23,11 @@ function formatTime(ms: number): string {
   }
 }
 
-export function GameHeader() {
+interface GameHeaderProps {
+  type: 'opponent' | 'self';
+}
+
+export function GameHeader({ type }: GameHeaderProps) {
   const turn = useChessStore((state) => state.turn);
   const gameStatus = useChessStore((state) => state.gameStatus);
   const online = useChessStore((state) => state.online);
@@ -32,29 +36,50 @@ export function GameHeader() {
   const isOffline = useChessStore((state) => state.isOffline);
   const roomStatus = useChessStore((state) => state.roomStatus);
   const moveHistory = useChessStore((state) => state.moveHistory);
-  
-  const turnText = turn === 'w' ? 'White' : 'Black';
-  
-  const statusText = {
-    active: 'In Progress',
-    check: 'Check!',
-    checkmate: 'Checkmate!',
-    draw: 'Draw',
-    stalemate: 'Stalemate',
-    timeout: 'Hết giờ (Timeout)',
-  }[gameStatus];
-  
-  const statusColor = {
-    active: 'text-gray-300',
-    check: 'text-yellow-400',
-    checkmate: 'text-red-400',
-    draw: 'text-blue-400',
-    stalemate: 'text-blue-400',
-    timeout: 'text-red-400',
-  }[gameStatus];
-  
-  const hasWhite = !!players?.white;
-  const hasBlack = !!players?.black;
+
+  // Destructure store values to safe primitive dependency variables
+  const clocksWhite = clocks?.white ?? 0;
+  const clocksBlack = clocks?.black ?? 0;
+  const clocksLastMoveTime = clocks?.lastMoveTime ?? 0;
+  const onlineRoomId = online.roomId;
+  const onlineMyColor = online.myColor;
+  const moveHistoryLength = moveHistory.length;
+
+  // Determine the color of self and opponent
+  const selfColor = onlineRoomId ? (onlineMyColor || 'w') : 'w';
+  const opponentColor = selfColor === 'w' ? 'b' : 'w';
+
+  const cardColor = type === 'self' ? selfColor : opponentColor;
+
+  // Game running state is true if the game is active OR in check state
+  const isGameRunning = gameStatus === 'active' || gameStatus === 'check';
+  const isCardTurn = turn === cardColor && isGameRunning;
+
+  const colorText = cardColor === 'w' ? 'White' : 'Black';
+  const colorEmoji = cardColor === 'w' ? '⚪' : '⚫';
+
+  // Determine player presence (online mode only)
+  const isPlayerPresent = onlineRoomId
+    ? cardColor === 'w'
+      ? !!players?.white
+      : !!players?.black
+    : true;
+
+  // Player Name / Role text
+  let displayName = '';
+  if (onlineRoomId) {
+    if (type === 'self') {
+      displayName = `Bạn (${colorText})`;
+    } else {
+      displayName = `Đối thủ (${colorText})`;
+    }
+  } else {
+    if (type === 'self') {
+      displayName = `White (You)`;
+    } else {
+      displayName = `Black (Opponent)`;
+    }
+  }
 
   // Local state to display real-time clock tickdown without polluting store too often
   const [displayClocks, setDisplayClocks] = useState<{ white: number; black: number }>({ white: 0, black: 0 });
@@ -66,27 +91,27 @@ export function GameHeader() {
   }, [clocks]);
 
   useEffect(() => {
-    if (!clocks || gameStatus !== 'active') return;
-    
+    if (!clocks || !isGameRunning) return;
+
     // Only tick when the game is actually playing (if online)
-    if (online.roomId && roomStatus !== 'playing') return;
+    if (onlineRoomId && roomStatus !== 'playing') return;
 
     // Do NOT tick down the clocks if the game just started and no moves have been made yet
-    if (moveHistory.length === 0) {
-      setDisplayClocks({ white: clocks.white, black: clocks.black });
+    if (moveHistoryLength === 0) {
+      setDisplayClocks({ white: clocksWhite, black: clocksBlack });
       return;
     }
 
     const interval = setInterval(() => {
-      const elapsed = Date.now() - clocks.lastMoveTime;
-      
-      let whiteTime = clocks.white;
-      let blackTime = clocks.black;
+      const elapsed = Date.now() - clocksLastMoveTime;
+
+      let whiteTime = clocksWhite;
+      let blackTime = clocksBlack;
 
       if (turn === 'w') {
-        whiteTime = Math.max(0, clocks.white - elapsed);
+        whiteTime = Math.max(0, clocksWhite - elapsed);
       } else {
-        blackTime = Math.max(0, clocks.black - elapsed);
+        blackTime = Math.max(0, clocksBlack - elapsed);
       }
 
       setDisplayClocks({ white: whiteTime, black: blackTime });
@@ -95,16 +120,16 @@ export function GameHeader() {
       if (whiteTime <= 0 || blackTime <= 0) {
         clearInterval(interval);
         const winner = whiteTime <= 0 ? 'b' : 'w';
-        
+
         if (isOffline) {
           useChessStore.setState({
             gameStatus: 'timeout',
             matchResult: { winner, reason: 'Hết giờ (Timeout)' }
           });
-        } else if (online.roomId) {
+        } else if (onlineRoomId) {
           // Only the player who timed out triggers the database update to avoid race conditions
-          if (online.myColor === turn) {
-            const roomRef = ref(database, `rooms/${online.roomId}`);
+          if (onlineMyColor === turn) {
+            const roomRef = ref(database, `rooms/${onlineRoomId}`);
             update(roomRef, {
               status: 'finished',
               winner,
@@ -116,113 +141,63 @@ export function GameHeader() {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [clocks, turn, gameStatus, isOffline, online, roomStatus, moveHistory]);
+  }, [clocksWhite, clocksBlack, clocksLastMoveTime, turn, gameStatus, isOffline, onlineRoomId, onlineMyColor, roomStatus, moveHistoryLength, isGameRunning, clocks]);
+
+  const timeValue = cardColor === 'w' ? displayClocks.white : displayClocks.black;
+  const isTimeLow = timeValue < 15000 && clocks; // 15 seconds
+
+  // Active / Check / Status indicator on card
+  const isChecked = gameStatus === 'check' && isCardTurn;
 
   return (
-    <div className="bg-[#0c141a]/90 backdrop-blur-md rounded-2xl p-5 border border-[#414942] min-w-[240px] shadow-xl text-[#dbe3ec] relative overflow-hidden">
-      {/* Decorative subtle header background line */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#a8d638] to-transparent" />
-      
-      <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Lượt đi</div>
-      <div className="text-2xl font-black text-white mb-1.5 flex items-center gap-2">
-        <span className={turn === 'w' ? 'text-white' : 'text-slate-400'}>
-          {turn === 'w' ? '⚪' : '⚫'}
-        </span>
-        <span>{turnText}</span>
+    <div
+      className={`min-w-[240px] text-[#dbe3ec] transition-all duration-300 ${
+        isCardTurn ? 'opacity-100 clock-card-wrapper ' : 'opacity-60'
+      }`}
+    >
+      {/* Inner content layer - solid bg covers the spinning gradient center */}
+      <div className="clock-card-inner">
+        <div className="flex items-center justify-between gap-4 w-full">
+          {/* Left side: Color, Name, Check badge, Online indicator */}
+          <div className="flex items-center gap-2 select-none">
+            <span className="text-lg leading-none">{colorEmoji}</span>
+            <span className="font-bold text-sm tracking-wide text-white whitespace-nowrap">{displayName}</span>
+
+            {onlineRoomId && (
+              <span
+                className={`w-2 h-2 rounded-full transition-all ${isPlayerPresent
+                  ? 'bg-[#a8d638] shadow-[0_0_6px_#a8d638]'
+                  : 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]'
+                  }`}
+              />
+            )}
+
+            {isChecked && (
+              <span className="bg-red-600/90 text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow-[0_2px_6px_rgba(220,38,38,0.4)] tracking-wider animate-pulse">
+                CHECK
+              </span>
+            )}
+          </div>
+
+          {/* Right side: Clock timer */}
+          <div className="flex items-center">
+            {clocks ? (
+              <span
+                className={`text-base font-mono font-black px-2.5 py-1 rounded-xl transition-all tracking-wide ${isTimeLow && isCardTurn
+                  ? 'bg-red-950/80 text-red-400 animate-pulse'
+                  : isCardTurn
+                    ? 'bg-[#a8d638]/15 text-[#a8d638]'
+                    : 'bg-[#070f15]/80 text-slate-400'
+                  }`}
+              >
+                {formatTime(timeValue)}
+              </span>
+            ) : (
+              <span className="text-xs font-semibold text-slate-500 italic">Vô hạn</span>
+            )}
+          </div>
+        </div>
       </div>
-      <div className={`text-xs font-bold uppercase tracking-wider mb-4 ${statusColor}`}>{statusText}</div>
-      
-      {/* ONLINE MODE TIMERS AND PRESENCE */}
-      {online.roomId && (
-        <div className="pt-3.5 border-t border-[#414942] space-y-3">
-          <div className="text-[10px] font-black uppercase tracking-widest text-[#a8d638]/70">Người chơi & Thời gian</div>
-          
-          {/* White Player row */}
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-xs text-gray-300 flex items-center gap-1.5 font-medium">
-              <span>⚪</span> Trắng {online.myColor === 'w' && <span className="text-[9px] text-[#a8d638] font-mono font-bold">(Bạn)</span>}
-            </span>
-            <div className="flex items-center gap-3">
-              {clocks && (
-                <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded transition-all ${
-                  displayClocks.white < 15000 && turn === 'w'
-                    ? 'bg-red-950 border border-red-700/50 text-red-400 animate-pulse'
-                    : turn === 'w'
-                    ? 'bg-[#a8d638]/10 border border-[#a8d638]/30 text-[#a8d638]'
-                    : 'bg-[#070f15] border border-[#414942] text-slate-400'
-                }`}>
-                  {formatTime(displayClocks.white)}
-                </span>
-              )}
-              <div className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${hasWhite ? 'bg-[#a8d638] shadow-[0_0_8px_#a8d638]' : 'bg-gray-600'}`} />
-                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{hasWhite ? 'On' : 'Off'}</span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Black Player row */}
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-xs text-gray-300 flex items-center gap-1.5 font-medium">
-              <span>⚫</span> Đen {online.myColor === 'b' && <span className="text-[9px] text-[#a8d638] font-mono font-bold">(Bạn)</span>}
-            </span>
-            <div className="flex items-center gap-3">
-              {clocks && (
-                <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded transition-all ${
-                  displayClocks.black < 15000 && turn === 'b'
-                    ? 'bg-red-950 border border-red-700/50 text-red-400 animate-pulse'
-                    : turn === 'b'
-                    ? 'bg-[#a8d638]/10 border border-[#a8d638]/30 text-[#a8d638]'
-                    : 'bg-[#070f15] border border-[#414942] text-slate-400'
-                }`}>
-                  {formatTime(displayClocks.black)}
-                </span>
-              )}
-              <div className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${hasBlack ? 'bg-[#a8d638] shadow-[0_0_8px_#a8d638]' : 'bg-gray-600'}`} />
-                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{hasBlack ? 'On' : 'Off'}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* OFFLINE MODE TIMERS */}
-      {clocks && !online.roomId && (
-        <div className="pt-3.5 border-t border-[#414942] space-y-3">
-          <div className="text-[10px] font-black uppercase tracking-widest text-[#a8d638]/70">Đồng hồ đếm ngược</div>
-          
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-xs text-gray-300 flex items-center gap-1.5 font-medium">
-              <span>⚪</span> Trắng
-            </span>
-            <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded transition-all ${
-              displayClocks.white < 15000 && turn === 'w'
-                ? 'bg-red-950 border border-red-700/50 text-red-400 animate-pulse'
-                : turn === 'w'
-                ? 'bg-[#a8d638]/10 border border-[#a8d638]/30 text-[#a8d638]'
-                : 'bg-[#070f15] border border-[#414942] text-slate-400'
-            }`}>
-              {formatTime(displayClocks.white)}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-xs text-gray-300 flex items-center gap-1.5 font-medium">
-              <span>⚫</span> Đen
-            </span>
-            <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded transition-all ${
-              displayClocks.black < 15000 && turn === 'b'
-                ? 'bg-red-950 border border-red-700/50 text-red-400 animate-pulse'
-                : turn === 'b'
-                ? 'bg-[#a8d638]/10 border border-[#a8d638]/30 text-[#a8d638]'
-                : 'bg-[#070f15] border border-[#414942] text-slate-400'
-            }`}>
-              {formatTime(displayClocks.black)}
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

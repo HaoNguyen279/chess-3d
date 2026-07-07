@@ -126,7 +126,11 @@ export default function Home() {
       
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-6 left-6 pointer-events-auto">
-          <GameHeader />
+          <GameHeader type="opponent" />
+        </div>
+        
+        <div className="absolute bottom-6 left-6 pointer-events-auto">
+          <GameHeader type="self" />
         </div>
         
         <div className="absolute top-6 right-6 pointer-events-auto w-64 space-y-4">

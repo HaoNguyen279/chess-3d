@@ -16,6 +16,7 @@ export function GameControls({ onLeaveRoom, onBackToHub }: GameControlsProps) {
   const moveHistory = useChessStore((state) => state.moveHistory);
   const isOffline = useChessStore((state) => state.isOffline);
   const online = useChessStore((state) => state.online);
+  const triggerCameraReset = useChessStore((state) => state.triggerCameraReset);
 
   const canUndo = moveHistory.length > 0;
 
@@ -46,7 +47,13 @@ export function GameControls({ onLeaveRoom, onBackToHub }: GameControlsProps) {
           onClick={onBackToHub}
           className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors text-sm"
         >
-          ← Về Hub
+          ← Hub
+        </button>
+        <button
+          onClick={triggerCameraReset}
+          className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors text-sm"
+        >
+          Default View
         </button>
         <button
           onClick={undo}
@@ -67,17 +74,32 @@ export function GameControls({ onLeaveRoom, onBackToHub }: GameControlsProps) {
 
   if (online.roomId) {
     return (
-      <button
-        onClick={handleLeaveRoom}
-        className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors text-sm"
-      >
-        Rời phòng (Resign)
-      </button>
+      <div className="flex gap-3">
+        <button
+          onClick={triggerCameraReset}
+          className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors text-sm"
+        >
+          Default View
+        </button>
+        <button
+          onClick={handleLeaveRoom}
+          className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors text-sm"
+        >
+          Quit
+        </button>
+      </div>
     );
   }
 
   return (
     <div className="flex gap-3">
+      <button
+        onClick={triggerCameraReset}
+        className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors text-sm"
+      >
+        Defaut View
+      </button>
+      
       <button
         onClick={undo}
         disabled={!canUndo}

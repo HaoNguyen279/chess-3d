@@ -52,6 +52,8 @@ interface ChessState {
   disconnectRoom: () => void;
   startOfflineGame: (timeControl?: string) => void;
   quitToHub: () => void;
+  cameraResetTrigger: number;
+  triggerCameraReset: () => void;
 }
 
 export function parseTimeControl(control: string): { time: number; increment: number } {
@@ -126,6 +128,9 @@ export const useChessStore = create<ChessState>((set, get) => ({
   players: null,
   timeControl: null,
   clocks: null,
+  cameraResetTrigger: 0,
+  
+  triggerCameraReset: () => set((state) => ({ cameraResetTrigger: state.cameraResetTrigger + 1 })),
   
   selectSquare: (square: Square) => {
     const { game, selectedSquare, online, isOffline, roomStatus } = get();

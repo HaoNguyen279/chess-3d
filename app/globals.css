@@ -24,3 +24,71 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* =============================================
+   ANIMATED SPINNING BORDER - Clock Overlay Cards
+   Technique: overflow:hidden wrapper + inner solid cover
+   ============================================= */
+
+/* =============================================
+   ANIMATED SPINNING BORDER - Clock Overlay Cards
+   ============================================= */
+
+@keyframes spinBorder {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@layer components {
+  /* --- Wrapper (thẻ cha ngoài cùng) --- */
+  .clock-card-wrapper {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    /* Dùng padding của thẻ cha để tạo khoảng hở 2px cho viền sáng lọt qua */
+    padding: 3px;
+    background-color: #172a20;
+  }
+
+  /* --- Gradient Layers (::before and ::after) --- */
+  .clock-card-wrapper::before,
+  .clock-card-wrapper::after {
+    content: "" !important;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    /* Dùng 1 khối vuông cố định siêu to (800x800) để khi xoay 
+       không bị hụt góc đối với thẻ hình chữ nhật */
+    width: 800px;
+    height: 800px;
+    /* Căn giữa tuyệt đối bằng margin âm (bằng một nửa width/height) */
+    margin-top: -400px;
+    margin-left: -400px;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .clock-card-wrapper::before {
+    background: conic-gradient(transparent 1%, #22c55e 20%, transparent 30%);
+    animation: spinBorder 2s linear infinite;
+  }
+
+  .clock-card-wrapper::after {
+    background: conic-gradient(transparent 1%, #22c55e 20%, transparent 30%);
+    animation: spinBorder 2s linear infinite;
+    /* Delay đúng một nửa thời gian để 2 viền luôn đối xứng nhau 180 độ */
+    animation-delay: -1s; 
+  }
+
+  /* --- Inner Content (thẻ con bọc nội dung chữ) --- */
+  .clock-card-inner {
+    position: relative;
+    /* Bỏ margin đi, vì thẻ cha đã có padding: 2px lo việc tạo khoảng hở rồi */
+    border-radius: 14px;
+    z-index: 10;
+    background-color: #0c1a14;
+    padding: 12px;
+    width: 100%;
+    height: 100%;
+  }
+}
