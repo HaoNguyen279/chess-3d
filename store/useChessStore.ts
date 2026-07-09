@@ -43,6 +43,11 @@ interface ChessState {
     reason: string | null;
   };
   isReviewing: boolean;
+  isPuzzleMode: boolean;
+  puzzleData: any | null;
+  puzzleSolution: Move[];
+  puzzleMoveIndex: number;
+  puzzleState: 'loading' | 'playing' | 'wrong' | 'solved' | null;
   roomStatus: 'waiting' | 'playing' | 'disconnected' | 'finished' | null;
   playerCount: number;
   players: { white?: string; black?: string } | null;
@@ -59,6 +64,9 @@ interface ChessState {
   startAIGame: (botId: string, botElo: number) => void;
   quitToHub: () => void;
   startReview: () => void;
+  startRandomPuzzle: () => Promise<void>;
+  retryPuzzleMove: () => void;
+  quitPuzzle: () => void;
   cameraResetTrigger: number;
   triggerCameraReset: () => void;
 }
@@ -130,6 +138,11 @@ export const useChessStore = create<ChessState>((set, get) => ({
     reason: null,
   },
   isReviewing: false,
+  isPuzzleMode: false,
+  puzzleData: null,
+  puzzleSolution: [],
+  puzzleMoveIndex: 0,
+  puzzleState: null,
   isOffline: false,
   isAI: false,
   aiColor: null,
@@ -145,8 +158,13 @@ export const useChessStore = create<ChessState>((set, get) => ({
   triggerCameraReset: () => set((state) => ({ cameraResetTrigger: state.cameraResetTrigger + 1 })),
   
   selectSquare: (square: Square) => {
-    const { game, selectedSquare, online, isOffline, isAI, aiColor, roomStatus, matchResult } = get();
+    const { game, selectedSquare, online, isOffline, isAI, aiColor, roomStatus, matchResult, isPuzzleMode, puzzleState } = get();
     const currentTurn = game.turn();
+    
+    // Block selection if puzzle is in a state that doesn't allow interaction
+    if (isPuzzleMode && (puzzleState === 'wrong' || puzzleState === 'solved' || puzzleState === 'loading')) {
+      return;
+    }
     
     // Block selection if game is over
     if (matchResult.winner) {
@@ -311,6 +329,44 @@ export const useChessStore = create<ChessState>((set, get) => ({
             stateUpdate.matchResult = { winner: 'draw', reason: 'Hết nước đi (Stalemate)' };
           } else {
             stateUpdate.matchResult = { winner: 'draw', reason: 'Hòa (Draw)' };
+          }
+        }
+        
+        // Handle Puzzle Mode Logic
+        const { isPuzzleMode, puzzleSolution, puzzleMoveIndex } = get();
+        if (isPuzzleMode && !isRemote) {
+          const expectedMove = puzzleSolution[puzzleMoveIndex];
+          if (expectedMove && move.san === expectedMove.san) {
+            // Correct move
+            stateUpdate.puzzleMoveIndex = puzzleMoveIndex + 1;
+            if (puzzleMoveIndex + 1 >= puzzleSolution.length) {
+              stateUpdate.puzzleState = 'solved';
+            }
+            set(stateUpdate);
+            
+            // Auto-play opponent's move
+            if (stateUpdate.puzzleState !== 'solved') {
+              setTimeout(() => {
+                const { puzzleSolution: curSol, puzzleMoveIndex: curIdx, puzzleState: curState } = get();
+                if (curState === 'playing') {
+                  const nextMove = curSol[curIdx];
+                  if (nextMove) {
+                    get().movePiece(nextMove.from, nextMove.to, true);
+                    // After opponent moves, increment index again
+                    set((state) => ({ 
+                      puzzleMoveIndex: state.puzzleMoveIndex + 1,
+                      puzzleState: state.puzzleMoveIndex + 1 >= state.puzzleSolution.length ? 'solved' : 'playing'
+                    }));
+                  }
+                }
+              }, 500);
+            }
+            return true;
+          } else {
+            // Wrong move
+            stateUpdate.puzzleState = 'wrong';
+            set(stateUpdate);
+            return false;
           }
         }
         
@@ -656,4 +712,65 @@ export const useChessStore = create<ChessState>((set, get) => ({
   startReview: () => {
     set({ isReviewing: true });
   },
+
+  startRandomPuzzle: async () => {
+    set({ puzzleState: 'loading', isPuzzleMode: true });
+    try {
+      const response = await fetch('https://api.chess.com/pub/puzzle/random');
+      const data = await response.json();
+      
+      const tempGame = new Chess();
+      tempGame.loadPgn(data.pgn);
+      const solutionMoves = tempGame.history({ verbose: true });
+      
+      const newGame = new Chess();
+      newGame.load(data.fen);
+      
+      set({
+        game: newGame,
+        fen: newGame.fen(),
+        turn: newGame.turn(),
+        pieces: initializePieces(newGame),
+        selectedSquare: null,
+        legalMoves: [],
+        captureMoves: [],
+        gameStatus: 'active',
+        moveHistory: [],
+        capturedPieces: { white: [], black: [] },
+        isOffline: false,
+        isAI: false,
+        online: { roomId: null, myColor: null },
+        matchResult: { winner: null, reason: null },
+        roomStatus: null,
+        
+        puzzleData: data,
+        puzzleSolution: solutionMoves as Move[],
+        puzzleMoveIndex: 0,
+        puzzleState: 'playing'
+      });
+      get().triggerCameraReset();
+    } catch (error) {
+      console.error('Failed to load puzzle:', error);
+      set({ puzzleState: null, isPuzzleMode: false });
+    }
+  },
+
+  retryPuzzleMove: () => {
+    const { isPuzzleMode, puzzleState } = get();
+    if (isPuzzleMode && puzzleState === 'wrong') {
+      get().undo(); // Revert the player's incorrect move
+      set({ puzzleState: 'playing' });
+    }
+  },
+
+  quitPuzzle: () => {
+    set({ 
+      isPuzzleMode: false,
+      puzzleData: null,
+      puzzleSolution: [],
+      puzzleMoveIndex: 0,
+      puzzleState: null
+    });
+    get().quitToHub();
+  }
 }));

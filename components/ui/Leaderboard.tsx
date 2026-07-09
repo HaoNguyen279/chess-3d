@@ -54,6 +54,20 @@ export function Leaderboard() {
     return parts[parts.length - 1].toLowerCase();
   };
 
+  // Get flag image source based on country code
+  const getFlagUrl = (countryUrl: string) => {
+    const code = getCountryCode(countryUrl);
+    const flagMappings: Record<string, string> = {
+      'xe': 'gb-eng', // England
+      'xw': 'gb-wls', // Wales
+      'xs': 'gb-sct', // Scotland
+      'xx': 'un',     // International / United Nations
+      'xb': 'un',     // Basque Country (fall back to International)
+    };
+    const targetCode = flagMappings[code] || code;
+    return `https://flagcdn.com/w20/${targetCode}.png`;
+  };
+
   return (
     <div className="w-full h-full overflow-y-auto custom-scrollbar p-10 flex justify-center bg-gradient-to-br from-[#070f15] to-[#0c141a]">
       <div className="w-full max-w-5xl">
@@ -125,9 +139,13 @@ export function Leaderboard() {
                 {/* Country */}
                 <div className="col-span-2 hidden md:flex items-center gap-2">
                   <img 
-                    src={`https://flagcdn.com/w20/${getCountryCode(player.country)}.png`}
+                    src={getFlagUrl(player.country)}
                     alt="country"
                     className="w-5 h-auto rounded-sm opacity-80 group-hover:opacity-100 transition-opacity"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).onerror = null;
+                      (e.target as HTMLImageElement).src = 'https://flagcdn.com/w20/un.png';
+                    }}
                   />
                   <span className="text-[#8e9a92] text-xs font-bold uppercase">{getCountryCode(player.country)}</span>
                 </div>

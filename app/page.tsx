@@ -8,6 +8,7 @@ import { CapturedPieces } from '@/components/ui/CapturedPieces';
 import { GameControls } from '@/components/ui/GameControls';
 import { GameOverModal } from '@/components/ui/GameOverModal';
 import { Lobby } from '@/components/ui/Lobby';
+import { PuzzleUI } from '@/components/ui/PuzzleUI';
 import { useChessStore } from '@/store/useChessStore';
 import { useChessSounds } from '@/lib/useChessSounds';
 import { useAIPlayer } from '@/lib/useAIPlayer';
@@ -23,6 +24,7 @@ export default function Home() {
   const startOfflineGame = useChessStore((state) => state.startOfflineGame);
   const startAIGame = useChessStore((state) => state.startAIGame);
   const quitToHub = useChessStore((state) => state.quitToHub);
+  const isPuzzleMode = useChessStore((state) => state.isPuzzleMode);
 
   const online = useChessStore((state) => state.online);
   const roomStatus = useChessStore((state) => state.roomStatus);
@@ -62,7 +64,7 @@ export default function Home() {
     setGameSession(null);
   }, [quitToHub]);
 
-  if (!gameSession && !isOffline && !isAI) {
+  if (!gameSession && !isOffline && !isAI && !isPuzzleMode) {
     return <Lobby onJoinRoom={handleJoinRoom} onStartOffline={handleStartOffline} onPlayBot={handlePlayBot} />;
   }
 
@@ -132,24 +134,28 @@ export default function Home() {
         </div>
       )}
       
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-6 left-6 pointer-events-auto">
-          <GameHeader type="opponent" />
+      <PuzzleUI />
+
+      {!isPuzzleMode && (
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-6 left-6 pointer-events-auto">
+            <GameHeader type="opponent" />
+          </div>
+          
+          <div className="absolute bottom-6 left-6 pointer-events-auto">
+            <GameHeader type="self" />
+          </div>
+          
+          <div className="absolute top-6 right-6 pointer-events-auto w-64 space-y-4">
+            <CapturedPieces />
+            <MoveHistory />
+          </div>
+          
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto flex items-center gap-3">
+            <GameControls onLeaveRoom={handleLeaveRoom} onBackToHub={handleBackToHub} />
+          </div>
         </div>
-        
-        <div className="absolute bottom-6 left-6 pointer-events-auto">
-          <GameHeader type="self" />
-        </div>
-        
-        <div className="absolute top-6 right-6 pointer-events-auto w-64 space-y-4">
-          <CapturedPieces />
-          <MoveHistory />
-        </div>
-        
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto flex items-center gap-3">
-          <GameControls onLeaveRoom={handleLeaveRoom} onBackToHub={handleBackToHub} />
-        </div>
-      </div>
+      )}
     </div>
   );
 }
