@@ -29,46 +29,76 @@ const SELECTED_MATERIAL = new THREE.MeshBasicMaterial({
   depthWrite: false,
   side: THREE.DoubleSide,
 });
+const LAST_MOVE_MATERIAL = new THREE.MeshBasicMaterial({
+  color: '#a0ffff', // light cyan
+  transparent: true,
+  opacity: 0.4,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+});
+const CHECKMATE_WINNER_MATERIAL = new THREE.MeshBasicMaterial({
+  color: '#2ecc71', // bright green
+  transparent: true,
+  opacity: 0.6,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+});
+const CHECKMATE_LOSER_MATERIAL = new THREE.MeshBasicMaterial({
+  color: '#e74c3c', // bright red
+  transparent: true,
+  opacity: 0.8,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+});
 
 interface ChessSquareProps {
   file: number;
   rank: number;
+  isLastMove?: boolean;
+  isWinnerKing?: boolean;
+  isLoserKing?: boolean;
 }
 
-export function ChessSquare({ file, rank }: ChessSquareProps) {
+export function ChessSquare({ file, rank, isLastMove, isWinnerKing, isLoserKing }: ChessSquareProps) {
   const selectSquare = useChessStore((state) => state.selectSquare);
   const selectedSquare = useChessStore((state) => state.selectedSquare);
   const legalMoves = useChessStore((state) => state.legalMoves);
   const captureMoves = useChessStore((state) => state.captureMoves);
-  
+
   const square = useMemo(() => {
     const files = 'abcdefgh';
     return `${files[file]}${rank + 1}` as Square;
   }, [file, rank]);
-  
+
   const position = useMemo(() => {
     const pos = get3DPosition(square);
     pos[1] = BOARD_Y + 0.005;
     return pos;
   }, [square]);
-  
+
   const isSelected = square === selectedSquare;
   const isCaptureMove = captureMoves.includes(square);
   const isLegalMove = legalMoves.includes(square);
-  
-  const material = isSelected 
+
+  const material = isLoserKing
+    ? CHECKMATE_LOSER_MATERIAL
+    : isWinnerKing
+    ? CHECKMATE_WINNER_MATERIAL
+    : isSelected 
     ? SELECTED_MATERIAL 
     : isCaptureMove 
     ? CAPTURE_MATERIAL 
     : isLegalMove 
     ? HIGHLIGHT_MATERIAL 
+    : isLastMove
+    ? LAST_MOVE_MATERIAL
     : INVISIBLE_MATERIAL;
-  
+
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     selectSquare(square);
   };
-  
+
   return (
     <mesh
       geometry={SQUARE_GEOMETRY}

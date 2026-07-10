@@ -18,7 +18,7 @@ export function GameOverModal({ onBackToLobby }: GameOverModalProps) {
   const startReview = useChessStore((state) => state.startReview);
 
   // Show modal if there is a winner, regardless of online or offline mode
-  if (!matchResult.winner || isReviewing) return null;
+  if (!matchResult.winner) return null;
 
   const isDraw = matchResult.winner === 'draw';
   const isOnline = !!online.roomId;
@@ -80,39 +80,24 @@ export function GameOverModal({ onBackToLobby }: GameOverModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-[#070f15]/90 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-      <div className="bg-[#0c141a] border border-[#414942] rounded-3xl p-8 w-full max-w-md text-center shadow-2xl relative overflow-hidden">
-        {/* Decorative top colored strip */}
-        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#a8d638] to-transparent" />
-        
-        <div className="text-7xl mb-5 drop-shadow-[0_0_15px_rgba(168,214,56,0.2)] select-none">
-          {emoji}
+    <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 animate-fadeIn pointer-events-auto">
+      <div className="bg-[#0c141a]/70 backdrop-blur-md border border-[#414942]/50 rounded-2xl p-4 flex flex-col items-center justify-center shadow-2xl min-w-[240px]">
+        <div className="flex items-center gap-3 mb-4">
+          <span className="text-4xl drop-shadow-md">{emoji}</span>
+          <div className="flex flex-col items-start">
+            <h2 className="text-xl font-black text-white tracking-tight">{title}</h2>
+            <p className="text-[#c1c9c0] text-xs font-medium">{subtitle}</p>
+          </div>
         </div>
         
-        <h2 className="text-3xl font-black text-white mb-3 tracking-tight">
-          {title}
-        </h2>
-        
-        <p className="text-[#c1c9c0] text-sm leading-relaxed mb-8 max-w-xs mx-auto">
-          {subtitle}
-        </p>
-        
-        <div className="flex flex-col gap-3">
-          <button
-            onClick={startReview}
-            className="w-full py-3.5 bg-[#1a232c] text-white border border-[#414942] font-bold rounded-xl hover:bg-[#232b31] active:scale-[0.97] transition-all text-base shadow-sm"
-          >
-            Xem lại ván đấu
-          </button>
-          
-          <button
-            onClick={handleBackToLobby}
-            className="w-full py-3.5 bg-[#a8d638] text-[#263500] font-black rounded-xl hover:brightness-110 active:scale-[0.97] transition-all text-base shadow-[0_4px_20px_rgba(168,214,56,0.25)]"
-          >
-            Quay lại Sảnh
-          </button>
-        </div>
+        <button
+          onClick={handleBackToLobby}
+          className="w-full py-2.5 bg-[#a8d638]/90 hover:bg-[#a8d638] text-[#263500] font-black rounded-xl active:scale-[0.97] transition-all text-sm shadow-lg backdrop-blur-sm"
+        >
+          Thoát trận
+        </button>
       </div>
     </div>
   );
 }
+

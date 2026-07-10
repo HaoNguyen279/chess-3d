@@ -11,6 +11,7 @@ import { GrassPlane } from './GrassPlane';
 import { ScatteredGrass } from './ScatteredGrass';
 import { Tree } from './Tree';
 import { SearsiaLucida } from './SearsiaLucida';
+import { ConfettiRenderer } from './ConfettiRenderer';
 
 /* ── Table geometry constants ──
  * The table.glb mesh spans Y ≈ -0.085 → 3.212 (surface height ≈ 3.21).
@@ -101,6 +102,7 @@ export const Scene3D = React.memo(() => {
         />
 
         <CameraController controlsRef={controlsRef} />
+        <ConfettiRenderer />
 
         <Suspense fallback={null}>
           {/* Table model — positioned at the origin, board sits on top */}

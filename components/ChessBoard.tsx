@@ -54,6 +54,28 @@ type GLTFResult = GLTF & {
 export function ChessBoard() {
   const { nodes, materials } = useGLTF('/models/source/chess_set_4k.gltf') as unknown as GLTFResult;
   const pieces = useChessStore((state) => state.pieces);
+  const game = useChessStore((state) => state.game);
+  const moveHistoryLength = useChessStore((state) => state.moveHistory.length);
+
+  const lastMove = useMemo(() => {
+    if (moveHistoryLength === 0) return null;
+    const history = game.history({ verbose: true }) as any[];
+    return history.length > 0 ? history[history.length - 1] : null;
+  }, [game, moveHistoryLength]);
+
+  const checkmateState = useMemo(() => {
+    if (game.isCheckmate()) {
+      const loserColor = game.turn();
+      const winnerColor = loserColor === 'w' ? 'b' : 'w';
+      const loserKing = pieces.find(p => p.type === 'k' && p.color === loserColor);
+      const winnerKing = pieces.find(p => p.type === 'k' && p.color === winnerColor);
+      return {
+        loserSquare: loserKing?.square,
+        winnerSquare: winnerKing?.square
+      };
+    }
+    return null;
+  }, [game, moveHistoryLength, pieces]);
 
   // Upgrade standard materials to physical materials to enable high-quality clearcoat lacquer reflections
   const physicalMaterials = useMemo(() => {
@@ -128,9 +150,21 @@ export function ChessBoard() {
       />
       
       {Array.from({ length: 8 }, (_, rank) =>
-        Array.from({ length: 8 }, (_, file) => (
-          <ChessSquare key={`${file}-${rank}`} file={file} rank={rank} />
-        ))
+        Array.from({ length: 8 }, (_, file) => {
+          const files = 'abcdefgh';
+          const squareId = `${files[file]}${rank + 1}`;
+          const isLastMove = lastMove?.from === squareId || lastMove?.to === squareId;
+          return (
+            <ChessSquare 
+              key={`${file}-${rank}`} 
+              file={file} 
+              rank={rank} 
+              isLastMove={isLastMove} 
+              isWinnerKing={checkmateState?.winnerSquare === squareId}
+              isLoserKing={checkmateState?.loserSquare === squareId}
+            />
+          );
+        })
       )}
       
       {pieces.map((piece) => (

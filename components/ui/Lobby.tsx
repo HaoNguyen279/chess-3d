@@ -7,6 +7,7 @@ import { parseTimeControl } from '@/store/useChessStore';
 import { LobbyModel } from './LobbyModel';
 import { PlayWithAI } from './PlayWithAI';
 import { Leaderboard } from './Leaderboard';
+import { LiveStreamers } from './LiveStreamers';
 
 interface Room {
   id: string;
@@ -43,7 +44,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
   // Selected time control (default to '10 min' )
   const [selectedControl, setSelectedControl] = useState<string>('10 min');
   const [roomCodeInput, setRoomCodeInput] = useState('');
-  const [currentTab, setCurrentTab] = useState<'play' | 'ai' | 'leaderboard'>('play');
+  const [currentTab, setCurrentTab] = useState<'play' | 'ai' | 'leaderboard' | 'watch'>('play');
 
   useEffect(() => {
     let storedUserId = localStorage.getItem('chess_user_id');
@@ -372,7 +373,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
             <span className="material-symbols-outlined">school</span>
             <span className="text-xs font-medium tracking-wide">Learn</span>
           </a>
-          <a className="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container-highest transition-colors duration-200" href="#" onClick={(e) => { e.preventDefault(); alert('Watch area coming soon!'); }}>
+          <a className={`flex items-center gap-3 px-3 py-2 rounded font-medium transition-colors duration-200 ${currentTab === 'watch' ? 'bg-secondary/10 text-secondary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'}`} href="#" onClick={(e) => { e.preventDefault(); setCurrentTab('watch'); }}>
             <span className="material-symbols-outlined">visibility</span>
             <span className="text-xs font-medium tracking-wide">Watch</span>
           </a>
@@ -421,6 +422,10 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
         <PlayWithAI onPlayBot={(botId, elo) => {
           onPlayBot?.(botId, elo);
         }} />
+      ) : currentTab === 'watch' ? (
+        <main className="ml-64 h-screen overflow-hidden relative z-10">
+          <LiveStreamers />
+        </main>
       ) : (
         <>
           {/* Main Content Area */}
@@ -860,7 +865,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
 
             {/* Thank you note */}
             <p className="text-sm text-[#c1c9c0] leading-relaxed max-w-xs mx-auto">
-              Cảm ơn sự ủng hộ của bạn! Mỗi lượt đóng góp là nguồn động lực to lớn giúp chúng tôi phát triển và duy trì máy chủ cho ChessFlow Esports. 🫶
+              Xin 5k ăn mì ik
             </p>
           </div>
         </div>
@@ -872,11 +877,11 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
           <div className="bg-[#0c141a] border border-[#414942] rounded-3xl p-6 w-full max-w-sm shadow-2xl relative text-center animate-scaleUp">
             <h2 className="text-xl font-bold mb-4 text-[#dbe3ec] flex items-center justify-center gap-2 mt-2">
               <span className="material-symbols-outlined text-secondary">explore</span>
-              Không Tìm Thấy Phòng
+              No room found
             </h2>
 
             <p className="text-sm text-[#c1c9c0] leading-relaxed mb-6 max-w-xs mx-auto">
-              Không tìm thấy phòng công cộng nào có chế độ chơi <span className="text-secondary font-bold">{selectedControl}</span>. Bạn có muốn tự tạo một phòng mới với chế độ này không?
+              No room found with selected game mode <span className="text-secondary font-bold">{selectedControl}</span>. Bạn có muốn tự tạo một phòng mới với chế độ này không?
             </p>
 
             <div className="flex gap-3 pt-2">
@@ -890,7 +895,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                 onClick={handleAutoCreateRoom}
                 className="flex-1 py-2.5 bg-secondary hover:brightness-110 text-on-secondary font-bold rounded-xl transition-all text-sm shadow-[0_0_15px_rgba(168,214,56,0.3)]"
               >
-                Xác nhận
+                Create
               </button>
             </div>
           </div>
