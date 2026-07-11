@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface LeaderboardPlayer {
   player_id: number;
@@ -15,6 +16,7 @@ interface LeaderboardPlayer {
 }
 
 export function Leaderboard() {
+  const { t } = useLanguage();
   const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +44,7 @@ export function Leaderboard() {
       <div className="w-full h-full flex items-center justify-center bg-[#070f15]/50 backdrop-blur-sm z-50">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-4 border-[#a8d638]/30 border-t-[#a8d638] rounded-full animate-spin shadow-[0_0_15px_rgba(168,214,56,0.5)]"></div>
-          <span className="text-[#a8d638] font-bold text-lg tracking-widest animate-pulse">LOADING LEADERBOARD...</span>
+          <span className="text-[#a8d638] font-bold text-lg tracking-widest animate-pulse">{t.leaderboard.loading}</span>
         </div>
       </div>
     );
@@ -73,19 +75,19 @@ export function Leaderboard() {
       <div className="w-full max-w-5xl">
         <div className="text-center mb-10">
           <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#a8d638] to-[#d4ff63] drop-shadow-[0_0_20px_rgba(168,214,56,0.3)] mb-3 tracking-tighter">
-            GLOBAL RANKINGS
+            {t.leaderboard.title}
           </h1>
-          <p className="text-[#8e9a92] text-lg font-medium">Top players from around the world in Daily Chess</p>
+          <p className="text-[#8e9a92] text-lg font-medium">{t.leaderboard.subtitle}</p>
         </div>
 
         <div className="bg-[#0c141a]/80 backdrop-blur-xl border border-[#2a3431] rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
           {/* Header Row */}
           <div className="grid grid-cols-12 gap-4 px-8 py-5 border-b border-[#2a3431] bg-[#111a22] text-[#8e9a92] text-xs font-bold uppercase tracking-wider sticky top-0 z-10">
-            <div className="col-span-1 text-center">Rank</div>
-            <div className="col-span-6 md:col-span-4">Player</div>
-            <div className="col-span-2 hidden md:block">Country</div>
-            <div className="col-span-3 md:col-span-3 text-right">Rating</div>
-            <div className="col-span-2 hidden md:block text-right">Title</div>
+            <div className="col-span-1 text-center">{t.leaderboard.rank}</div>
+            <div className="col-span-6 md:col-span-4">{t.leaderboard.player}</div>
+            <div className="col-span-2 hidden md:block">{t.leaderboard.country}</div>
+            <div className="col-span-3 md:col-span-3 text-right">{t.leaderboard.rating}</div>
+            <div className="col-span-2 hidden md:block text-right">{t.leaderboard.title_col}</div>
           </div>
 
           {/* Player List */}
@@ -131,7 +133,7 @@ export function Leaderboard() {
                       {player.username}
                     </span>
                     <span className="text-[#8e9a92] text-xs font-medium truncate">
-                      {player.name || 'Unknown'}
+                      {player.name || t.leaderboard.unknown}
                     </span>
                   </div>
                 </div>

@@ -2,12 +2,14 @@
 
 import React from 'react';
 import { useChessStore } from '@/store/useChessStore';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface GameOverModalProps {
   onBackToLobby: () => void;
 }
 
 export function GameOverModal({ onBackToLobby }: GameOverModalProps) {
+  const { t } = useLanguage();
   const matchResult = useChessStore((state) => state.matchResult);
   const online = useChessStore((state) => state.online);
   const isOffline = useChessStore((state) => state.isOffline);
@@ -22,53 +24,62 @@ export function GameOverModal({ onBackToLobby }: GameOverModalProps) {
 
   const isDraw = matchResult.winner === 'draw';
   const isOnline = !!online.roomId;
-  
+
+  // Get reason text from dictionary or fallback
+  const getReasonText = () => {
+    if (!matchResult.reason) return '';
+    const reasons = t.game_over.reasons;
+    return (reasons as Record<string, string>)[matchResult.reason] || matchResult.reason;
+  };
+
+  const reasonText = getReasonText();
+
   let emoji: string = '🏆';
-  let title: string = 'Game Over';
-  let subtitle: string = matchResult.reason || 'Trận đấu kết thúc';
+  let title: string = t.game_over.title_default;
+  let subtitle: string = reasonText;
 
   if (isAI) {
-    const isPlayerWinner = matchResult.winner === 'w'; // Player is always white
+    const isPlayerWinner = matchResult.winner === 'w';
     const botName = aiBotId ? (aiBotId.charAt(0).toUpperCase() + aiBotId.slice(1)) : 'Bot';
-    
+
     if (isDraw) {
       emoji = '🤝';
-      title = 'Hòa!';
-      subtitle = matchResult.reason || `Ván cờ hòa với ${botName}`;
+      title = t.game_over.title_draw;
+      subtitle = reasonText || t.game_over.vs_bot_draw.replace('{botName}', botName);
     } else if (isPlayerWinner) {
       emoji = '🎉';
-      title = 'Chiến thắng!';
-      subtitle = matchResult.reason || `Bạn đã đánh bại ${botName}`;
+      title = t.game_over.title_victory;
+      subtitle = reasonText || t.game_over.vs_bot_win.replace('{botName}', botName);
     } else {
       emoji = '💀';
-      title = 'Thất bại!';
-      subtitle = matchResult.reason || `${botName} đã đánh bại bạn`;
+      title = t.game_over.title_defeat;
+      subtitle = reasonText || t.game_over.vs_bot_lose.replace('{botName}', botName);
     }
   } else if (isOnline) {
     const isPlayerWinner = matchResult.winner === online.myColor;
     if (isDraw) {
       emoji = '🤝';
-      title = 'Hòa!';
-      subtitle = matchResult.reason || 'Ván cờ kết thúc với tỷ số hòa';
+      title = t.game_over.title_draw;
+      subtitle = reasonText || t.game_over.vs_online_draw;
     } else if (isPlayerWinner) {
       emoji = '🎉';
-      title = 'Chiến thắng!';
-      subtitle = matchResult.reason || 'Bạn đã đánh bại đối thủ';
+      title = t.game_over.title_victory;
+      subtitle = reasonText || t.game_over.vs_online_win;
     } else {
       emoji = '💀';
-      title = 'Thất bại!';
-      subtitle = matchResult.reason || 'Đối thủ đã đánh bại bạn';
+      title = t.game_over.title_defeat;
+      subtitle = reasonText || t.game_over.vs_online_lose;
     }
   } else {
     // Offline mode
     if (isDraw) {
       emoji = '🤝';
-      title = 'Hòa!';
-      subtitle = matchResult.reason || 'Ván cờ hòa';
+      title = t.game_over.title_draw;
+      subtitle = reasonText || t.game_over.offline_draw;
     } else {
       emoji = '🏆';
-      title = matchResult.winner === 'w' ? 'Trắng thắng!' : 'Đen thắng!';
-      subtitle = matchResult.reason || (matchResult.winner === 'w' ? 'Quân Trắng giành chiến thắng' : 'Quân Đen giành chiến thắng');
+      title = matchResult.winner === 'w' ? t.game_over.title_white_wins : t.game_over.title_black_wins;
+      subtitle = reasonText || (matchResult.winner === 'w' ? t.game_over.offline_white_wins : t.game_over.offline_black_wins);
     }
   }
 
@@ -89,12 +100,12 @@ export function GameOverModal({ onBackToLobby }: GameOverModalProps) {
             <p className="text-[#c1c9c0] text-xs font-medium">{subtitle}</p>
           </div>
         </div>
-        
+
         <button
           onClick={handleBackToLobby}
           className="w-full py-2.5 bg-[#a8d638]/90 hover:bg-[#a8d638] text-[#263500] font-black rounded-xl active:scale-[0.97] transition-all text-sm shadow-lg backdrop-blur-sm"
         >
-          Thoát trận
+          {t.game_over.back_to_lobby}
         </button>
       </div>
     </div>

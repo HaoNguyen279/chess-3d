@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Platform {
   type: string;
@@ -21,6 +22,7 @@ interface Streamer {
 }
 
 export function LiveStreamers() {
+  const { t } = useLanguage();
   const [streamers, setStreamers] = useState<Streamer[]>([]);
   const [loading, setLoading] = useState(true);
   const [hostname, setHostname] = useState('localhost');
@@ -81,32 +83,32 @@ export function LiveStreamers() {
         <header className="mb-10 flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-black tracking-tight text-white flex items-center gap-4">
-              Live Arena
+              {t.live.title}
               <span className="flex items-center gap-2 text-xs font-bold bg-red-500/10 text-red-500 px-3 py-1.5 rounded-full border border-red-500/20">
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
-                LIVE NOW
+                {t.live.live_now}
               </span>
             </h1>
             <p className="text-on-surface-variant mt-2 font-medium">
-              Watch top Grandmasters and the Chess community play right now.
+              {t.live.subtitle}
             </p>
           </div>
           <div className="bg-surface-container-high px-4 py-2 rounded-xl border border-outline-variant flex items-center gap-2">
             <span className="material-symbols-outlined text-secondary">group</span>
             <span className="font-mono font-bold text-secondary">{streamers.length}</span>
-            <span className="text-sm font-medium text-on-surface-variant">Streamers</span>
+            <span className="text-sm font-medium text-on-surface-variant">{t.live.streamers}</span>
           </div>
         </header>
 
         {loading ? (
           <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
             <span className="w-10 h-10 rounded-full border-4 border-surface-container-highest border-t-secondary animate-spin"></span>
-            <p className="text-on-surface-variant font-medium animate-pulse">Locating active broadcasts...</p>
+            <p className="text-on-surface-variant font-medium animate-pulse">{t.live.loading_broadcasts}</p>
           </div>
         ) : streamers.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-[50vh] gap-4 bg-surface-container-lowest border border-outline-variant rounded-3xl">
             <span className="material-symbols-outlined text-6xl text-on-surface-variant opacity-50">videocam_off</span>
-            <p className="text-on-surface-variant font-medium">No streamers are live right now. Check back later!</p>
+            <p className="text-on-surface-variant font-medium">{t.live.no_streamers}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -143,12 +145,12 @@ export function LiveStreamers() {
                           <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md">
                             <span className="w-3 h-3 rounded-full border-2 border-white/20 border-t-secondary animate-spin"></span>
                             <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
-                              Loading Stream...
+                              {t.live.loading_stream}
                             </span>
                           </div>
                         ) : (
                           <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest bg-black/40 px-3 py-1 rounded-full backdrop-blur-md">
-                            {embedUrl ? 'Queued' : 'Preview Unavailable'}
+                            {embedUrl ? t.live.queued : t.live.unavailable}
                           </span>
                         )}
                       </div>
@@ -157,7 +159,7 @@ export function LiveStreamers() {
                     {/* Live Badge Overlay */}
                     <div className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded shadow-lg flex items-center gap-1.5 z-10 pointer-events-none">
                       <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-                      LIVE
+                      {t.live.live}
                     </div>
                   </div>
 
@@ -177,7 +179,7 @@ export function LiveStreamers() {
                       </h3>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs font-medium text-on-surface-variant capitalize px-2 py-0.5 bg-surface-container-high rounded-md border border-outline-variant">
-                          {livePlatform?.type || 'Unknown Platform'}
+                          {livePlatform?.type || t.live.unknown_platform}
                         </span>
                       </div>
                     </div>
@@ -187,7 +189,7 @@ export function LiveStreamers() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-10 h-10 rounded-xl bg-secondary/10 border border-secondary/20 flex items-center justify-center text-secondary hover:bg-secondary hover:text-on-secondary transition-all shrink-0"
-                      title="View Profile"
+                      title={t.live.view_profile}
                     >
                       <span className="material-symbols-outlined text-xl">open_in_new</span>
                     </a>

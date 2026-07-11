@@ -2,10 +2,12 @@
 
 import React from 'react';
 import { useChessStore } from '@/store/useChessStore';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export function MoveHistory() {
+  const { t } = useLanguage();
   const moveHistory = useChessStore((state) => state.moveHistory);
-  
+
   const movePairs = [];
   for (let i = 0; i < moveHistory.length; i += 2) {
     movePairs.push({
@@ -14,13 +16,13 @@ export function MoveHistory() {
       black: moveHistory[i + 1] || '',
     });
   }
-  
+
   return (
     <div className="bg-black/70 backdrop-blur-sm rounded-lg p-4 border border-gray-700 max-h-64 overflow-y-auto">
-      <div className="text-sm font-semibold text-gray-300 mb-3">Move History</div>
-      
+      <div className="text-sm font-semibold text-gray-300 mb-3">{t.game.move_history}</div>
+
       {movePairs.length === 0 ? (
-        <div className="text-xs text-gray-500 italic">No moves yet</div>
+        <div className="text-xs text-gray-500 italic">{t.game.no_moves_yet}</div>
       ) : (
         <div className="space-y-1">
           {movePairs.map((pair) => (

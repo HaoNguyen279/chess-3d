@@ -12,10 +12,12 @@ import { PuzzleUI } from '@/components/ui/PuzzleUI';
 import { useChessStore } from '@/store/useChessStore';
 import { useChessSounds } from '@/lib/useChessSounds';
 import { useAIPlayer } from '@/lib/useAIPlayer';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function Home() {
   useChessSounds();
   useAIPlayer();
+  const { t } = useLanguage();
   const [gameSession, setGameSession] = useState<{ roomId: string; myColor: 'w' | 'b' } | null>(null);
   const connectRoom = useChessStore((state) => state.connectRoom);
   const disconnectRoom = useChessStore((state) => state.disconnectRoom);
@@ -77,11 +79,9 @@ export default function Home() {
       {/* Toast Alert */}
       {showToast && (
         <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-[#a8d638] text-[#263500] font-black text-sm px-6 py-3 rounded-full shadow-[0_0_20px_rgba(168,214,56,0.4)] animate-bounce z-40">
-          🎉 Opponent connected! Game starts now.
+          {t.online.opponent_connected}
         </div>
       )}
-
-      {/* Modal removed as requested */}
 
       <PuzzleUI />
 
@@ -106,20 +106,20 @@ export default function Home() {
                 {roomStatus === 'waiting' ? (
                   <>
                     <span className="w-3 h-3 rounded-full bg-[#a8d638] animate-pulse shadow-[0_0_10px_#a8d638]" />
-                    <span className="text-sm font-bold text-white tracking-wide">Waiting for opponent...</span>
+                    <span className="text-sm font-bold text-white tracking-wide">{t.online.waiting}</span>
                     <div className="h-4 w-px bg-[#414942] mx-2" />
                     <span className="font-mono text-sm text-[#a8d638] select-all">{online.roomId}</span>
                     <button
                       onClick={() => navigator.clipboard.writeText(online.roomId || '')}
                       className="px-3 py-1.5 bg-[#a8d638]/10 text-[#a8d638] hover:bg-[#a8d638]/20 rounded-lg text-xs font-bold transition-all"
                     >
-                      Copy
+                      {t.online.copy}
                     </button>
                   </>
                 ) : (
                   <>
                     <span className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.7)]" />
-                    <span className="text-sm font-bold text-white tracking-wide">Opponent Disconnected</span>
+                    <span className="text-sm font-bold text-white tracking-wide">{t.online.opponent_disconnected}</span>
                   </>
                 )}
                 <div className="h-4 w-px bg-[#414942] mx-2" />
@@ -127,7 +127,7 @@ export default function Home() {
                   onClick={handleLeaveRoom}
                   className="px-4 py-1.5 bg-red-600/20 text-red-500 hover:bg-red-600 hover:text-white border border-red-600/30 rounded-lg text-xs font-bold transition-all"
                 >
-                  Quit to Lobby
+                  {t.online.quit_lobby}
                 </button>
               </div>
             ) : (

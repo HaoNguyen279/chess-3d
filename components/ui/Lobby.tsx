@@ -8,6 +8,8 @@ import { LobbyModel } from './LobbyModel';
 import { PlayWithAI } from './PlayWithAI';
 import { Leaderboard } from './Leaderboard';
 import { LiveStreamers } from './LiveStreamers';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface Room {
   id: string;
@@ -29,6 +31,7 @@ interface LobbyProps {
 }
 
 export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
+  const { t } = useLanguage();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -73,7 +76,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
 
   const handleCreateRoom = async () => {
     if (!roomName.trim()) {
-      alert('Vui lòng nhập tên phòng');
+      alert(t.lobby.alert_enter_room_name);
       return;
     }
 
@@ -111,7 +114,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
 
   const handleJoinRoom = async () => {
     if (!selectedRoom || !joinPassword.trim()) {
-      alert('Vui lòng nhập mật khẩu');
+      alert(t.lobby.alert_enter_password);
       return;
     }
 
@@ -120,18 +123,18 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
     const roomData = snapshot.val();
 
     if (!roomData) {
-      alert('Phòng không tồn tại');
+      alert(t.lobby.alert_room_not_found);
       return;
     }
 
     if (roomData.password !== joinPassword.trim()) {
-      alert('Mật khẩu không đúng');
+      alert(t.lobby.alert_wrong_password);
       setJoinPassword('');
       return;
     }
 
     if (roomData.playerCount >= 2) {
-      alert('Phòng đã đủ người');
+      alert(t.lobby.alert_room_full);
       return;
     }
 
@@ -150,7 +153,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
 
   const handleDirectJoin = async (room: Room) => {
     if (room.playerCount >= 2) {
-      alert('Phòng đã đủ người');
+      alert(t.lobby.alert_room_full);
       return;
     }
     try {
@@ -164,7 +167,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
       onJoinRoom(room.id, 'b');
     } catch (e) {
       console.error('Lỗi khi vào phòng:', e);
-      alert('Đã xảy ra lỗi khi vào phòng.');
+      alert(t.lobby.alert_join_error);
     }
   };
 
@@ -198,7 +201,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
       }
     } catch (error) {
       console.error('Lỗi matchmaking:', error);
-      alert('Đã xảy ra lỗi khi tìm trận đấu.');
+      alert(t.lobby.alert_join_error);
     }
   };
 
@@ -234,14 +237,14 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
       onJoinRoom(roomId, 'w');
     } catch (error) {
       console.error('Lỗi tự động tạo phòng:', error);
-      alert('Không thể tạo phòng.');
+      alert(t.lobby.alert_create_error);
     }
   };
 
   const handleJoinByCode = async () => {
     const code = roomCodeInput.trim();
     if (!code) {
-      alert('Vui lòng nhập mã phòng');
+      alert(t.lobby.alert_enter_room_name);
       return;
     }
 
@@ -251,12 +254,12 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
       const roomData = snapshot.val();
 
       if (!roomData) {
-        alert('Phòng không tồn tại');
+        alert(t.lobby.alert_room_not_found);
         return;
       }
 
       if (roomData.playerCount >= 2) {
-        alert('Phòng đã đủ người');
+        alert(t.lobby.alert_room_full);
         return;
       }
 
@@ -273,7 +276,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
       onJoinRoom(code, 'b');
     } catch (error) {
       console.error('Lỗi khi vào phòng bằng mã:', error);
-      alert('Đã xảy ra lỗi khi kết nối đến phòng.');
+      alert(t.lobby.alert_join_error);
     }
   };
 
@@ -351,7 +354,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
       {/* Persistent SideNavBar */}
       <aside className="h-screen w-64 fixed left-0 top-0 flex flex-col py-6 px-4 bg-surface-container-lowest border-r border-outline-variant z-30">
         <div className="mb-12 px-2">
-          <h1 className="text-2xl font-black text-secondary tracking-wide">Chess3D ♕</h1>
+          <h1 className="text-2xl font-black text-secondary tracking-wide">{t.lobby.brand}</h1>
         </div>
         <nav className="flex-1 space-y-1">
           <a
@@ -359,45 +362,48 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
             onClick={() => setCurrentTab('play')}
           >
             <span className="material-symbols-outlined">videogame_asset</span>
-            <span className="text-xs font-medium tracking-wide">Play</span>
+            <span className="text-xs font-medium tracking-wide">{t.lobby.nav_play}</span>
           </a>
           <a className={`flex items-center gap-3 px-3 py-2 rounded font-medium transition-colors duration-200 ${currentTab === 'ai' ? 'bg-secondary/10 text-secondary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'}`} href="#" onClick={(e) => { e.preventDefault(); setCurrentTab('ai'); }}>
             <span className="material-symbols-outlined">smart_toy</span>
-            <span className="text-xs font-medium tracking-wide">Play with AI</span>
+            <span className="text-xs font-medium tracking-wide">{t.lobby.nav_play_ai}</span>
           </a>
           <a className={`flex items-center gap-3 px-3 py-2 rounded font-medium transition-colors duration-200 ${currentTab === 'leaderboard' ? 'bg-secondary/10 text-secondary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'}`} href="#" onClick={(e) => { e.preventDefault(); setCurrentTab('leaderboard'); }}>
             <span className="material-symbols-outlined">leaderboard</span>
-            <span className="text-xs font-medium tracking-wide">Leaderboard</span>
+            <span className="text-xs font-medium tracking-wide">{t.lobby.nav_leaderboard}</span>
           </a>
-          <a className="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container-highest transition-colors duration-200" href="#" onClick={(e) => { e.preventDefault(); alert('Tutorials coming soon!'); }}>
+          <a className="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container-highest transition-colors duration-200" href="#" onClick={(e) => { e.preventDefault(); alert(t.lobby.coming_soon_tutorials); }}>
             <span className="material-symbols-outlined">school</span>
-            <span className="text-xs font-medium tracking-wide">Learn</span>
+            <span className="text-xs font-medium tracking-wide">{t.lobby.nav_learn}</span>
           </a>
           <a className={`flex items-center gap-3 px-3 py-2 rounded font-medium transition-colors duration-200 ${currentTab === 'watch' ? 'bg-secondary/10 text-secondary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'}`} href="#" onClick={(e) => { e.preventDefault(); setCurrentTab('watch'); }}>
             <span className="material-symbols-outlined">visibility</span>
-            <span className="text-xs font-medium tracking-wide">Watch</span>
+            <span className="text-xs font-medium tracking-wide">{t.lobby.nav_watch}</span>
           </a>
-          <a className="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container-highest transition-colors duration-200" href="#" onClick={(e) => { e.preventDefault(); alert('News coming soon!'); }}>
+          <a className="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container-highest transition-colors duration-200" href="#" onClick={(e) => { e.preventDefault(); alert(t.lobby.coming_soon_news); }}>
             <span className="material-symbols-outlined">newspaper</span>
-            <span className="text-xs font-medium tracking-wide">News</span>
+            <span className="text-xs font-medium tracking-wide">{t.lobby.nav_news}</span>
           </a>
-          <a className="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container-highest transition-colors duration-200" href="#" onClick={(e) => { e.preventDefault(); alert('Social hub coming soon!'); }}>
+          <a className="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container-highest transition-colors duration-200" href="#" onClick={(e) => { e.preventDefault(); alert(t.lobby.coming_soon_social); }}>
             <span className="material-symbols-outlined">group</span>
-            <span className="text-xs font-medium tracking-wide">Social</span>
+            <span className="text-xs font-medium tracking-wide">{t.lobby.nav_social}</span>
           </a>
-          <a className="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container-highest transition-colors duration-200" href="#" onClick={(e) => { e.preventDefault(); alert('Settings coming soon!'); }}>
+          <a className="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container-highest transition-colors duration-200" href="#" onClick={(e) => { e.preventDefault(); alert(t.lobby.coming_soon_settings); }}>
             <span className="material-symbols-outlined">settings</span>
-            <span className="text-xs font-medium tracking-wide">Settings</span>
+            <span className="text-xs font-medium tracking-wide">{t.lobby.nav_settings}</span>
           </a>
         </nav>
 
-        <div className="mt-auto space-y-6">
+        <div className="mt-auto space-y-4">
+          <div className="flex justify-center px-2">
+            <LanguageSwitcher />
+          </div>
           <button
             onClick={() => setShowDonateModal(true)}
             className="w-full py-3 bg-secondary text-on-secondary rounded-lg font-bold hover:brightness-110 transition-all shadow-[0_0_20px_rgba(168,214,56,0.3)] text-sm flex items-center justify-center gap-1.5"
           >
-            <span>Donate us</span>
-            <span>❤️</span>
+            <span>{t.lobby.donate}</span>
+            <span>{t.lobby.donate_heart}</span>
           </button>
 
           <div className="flex flex-col gap-2 pt-4 border-t border-outline-variant">
@@ -407,7 +413,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
               </div>
               <div>
                 <p className="text-sm font-semibold truncate w-32">Pro hacker</p>
-                <p className="text-[10px] font-mono text-secondary">ELO 69696</p>
+                <p className="text-[10px] font-mono text-secondary">{t.lobby.user_elo.replace('{elo}', '69696')}</p>
               </div>
             </div>
           </div>
@@ -439,8 +445,8 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
             </div>
 
             <div className="text-center z-10">
-              <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-2 tracking-tight">Welcome Back, Grandmaster</h2>
-              <p className="text-on-surface-variant font-medium opacity-70">The arena awaits your next masterstroke.</p>
+              <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-2 tracking-tight">{t.lobby.welcome_title}</h2>
+              <p className="text-on-surface-variant font-medium opacity-70">{t.lobby.welcome_subtitle}</p>
             </div>
           </main>
 
@@ -450,7 +456,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
               {/* Mode Selection Grid */}
               <section className="space-y-4">
                 <div className="flex items-center gap-2 text-on-surface-variant">
-                  <h3 className="text-[20px] font-black uppercase tracking-widest text-secondary">Select mode</h3>
+                  <h3 className="text-[20px] font-black uppercase tracking-widest text-secondary">{t.lobby.select_mode}</h3>
                   <span className="material-symbols-outlined text-sm text-secondary">schedule</span>
                 </div>
 
@@ -458,7 +464,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                 <div className="space-y-2">
                   <div className="flex items-center gap-1.5 text-secondary/70">
                     <span className="material-symbols-outlined text-sm">rocket_launch</span>
-                    <span className="text-[10px] font-black uppercase tracking-wider">BULLET</span>
+                    <span className="text-[10px] font-black uppercase tracking-wider">{t.lobby.bullet}</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div
@@ -466,24 +472,24 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                       onClick={() => setSelectedControl('1 min')}
                     >
                       <span className="material-symbols-outlined text-secondary text-lg mb-1">rocket_launch</span>
-                      <p className="font-bold text-sm">1 min</p>
-                      <p className="text-[10px] opacity-50">Bullet</p>
+                      <p className="font-bold text-sm">{t.lobby.time_1min}</p>
+                      <p className="text-[10px] opacity-50">{t.lobby.bullet}</p>
                     </div>
                     <div
                       className={`mode-card rounded-lg p-3 flex flex-col items-center justify-center cursor-pointer ${selectedControl === '1 | 1' ? 'active' : ''}`}
                       onClick={() => setSelectedControl('1 | 1')}
                     >
                       <span className="material-symbols-outlined text-secondary text-lg mb-1">rocket_launch</span>
-                      <p className="font-bold text-sm">1 | 1</p>
-                      <p className="text-[10px] opacity-50">Bullet</p>
+                      <p className="font-bold text-sm">{t.lobby.time_1_1}</p>
+                      <p className="text-[10px] opacity-50">{t.lobby.bullet}</p>
                     </div>
                     <div
                       className={`mode-card rounded-lg p-3 flex flex-col items-center justify-center cursor-pointer ${selectedControl === '2 | 1' ? 'active' : ''}`}
                       onClick={() => setSelectedControl('2 | 1')}
                     >
                       <span className="material-symbols-outlined text-secondary text-lg mb-1">rocket_launch</span>
-                      <p className="font-bold text-sm">2 | 1</p>
-                      <p className="text-[10px] opacity-50">Bullet</p>
+                      <p className="font-bold text-sm">{t.lobby.time_2_1}</p>
+                      <p className="text-[10px] opacity-50">{t.lobby.bullet}</p>
                     </div>
                   </div>
                 </div>
@@ -492,7 +498,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                 <div className="space-y-2">
                   <div className="flex items-center gap-1.5 text-secondary/70">
                     <span className="material-symbols-outlined text-sm">bolt</span>
-                    <span className="text-[10px] font-black uppercase tracking-wider">BLITZ</span>
+                    <span className="text-[10px] font-black uppercase tracking-wider">{t.lobby.blitz}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div
@@ -500,32 +506,32 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                       onClick={() => setSelectedControl('3 min')}
                     >
                       <span className="material-symbols-outlined text-secondary text-lg mb-1">bolt</span>
-                      <p className="font-bold text-sm">3 min</p>
-                      <p className="text-[10px] opacity-50">Blitz</p>
+                      <p className="font-bold text-sm">{t.lobby.time_3min}</p>
+                      <p className="text-[10px] opacity-50">{t.lobby.blitz}</p>
                     </div>
                     <div
                       className={`mode-card rounded-lg p-3 flex flex-col items-center justify-center cursor-pointer h-20 ${selectedControl === '3 | 2' ? 'active' : ''}`}
                       onClick={() => setSelectedControl('3 | 2')}
                     >
                       <span className="material-symbols-outlined text-secondary text-lg mb-1">bolt</span>
-                      <p className="font-bold text-sm">3 | 2</p>
-                      <p className="text-[10px] opacity-50">Blitz</p>
+                      <p className="font-bold text-sm">{t.lobby.time_3_2}</p>
+                      <p className="text-[10px] opacity-50">{t.lobby.blitz}</p>
                     </div>
                     <div
                       className={`mode-card rounded-lg p-3 flex flex-col items-center justify-center cursor-pointer h-20 ${selectedControl === '5 min' ? 'active' : ''}`}
                       onClick={() => setSelectedControl('5 min')}
                     >
                       <span className="material-symbols-outlined text-secondary text-lg mb-1">bolt</span>
-                      <p className="font-bold text-sm">5 min</p>
-                      <p className="text-[10px] opacity-50">Blitz</p>
+                      <p className="font-bold text-sm">{t.lobby.time_5min}</p>
+                      <p className="text-[10px] opacity-50">{t.lobby.blitz}</p>
                     </div>
                     <div
                       className={`mode-card rounded-lg p-3 flex flex-col items-center justify-center cursor-pointer h-20 ${selectedControl === '5 | 5' ? 'active' : ''}`}
                       onClick={() => setSelectedControl('5 | 5')}
                     >
                       <span className="material-symbols-outlined text-secondary text-lg mb-1">bolt</span>
-                      <p className="font-bold text-sm">5 | 5</p>
-                      <p className="text-[10px] opacity-50">Blitz</p>
+                      <p className="font-bold text-sm">{t.lobby.time_5_5}</p>
+                      <p className="text-[10px] opacity-50">{t.lobby.blitz}</p>
                     </div>
                   </div>
                 </div>
@@ -534,7 +540,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                 <div className="space-y-2">
                   <div className="flex items-center gap-1.5 text-secondary/70">
                     <span className="material-symbols-outlined text-sm">pace</span>
-                    <span className="text-[10px] font-black uppercase tracking-wider">RAPID</span>
+                    <span className="text-[10px] font-black uppercase tracking-wider">{t.lobby.rapid}</span>
                   </div>
                   <div className="grid grid-cols-1 gap-2">
                     <div
@@ -543,9 +549,9 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                     >
                       <div className="flex items-center gap-4">
                         <span className="material-symbols-outlined text-secondary">pace</span>
-                        <p className="font-bold text-sm">10 min</p>
+                        <p className="font-bold text-sm">{t.lobby.time_10min}</p>
                       </div>
-                      <p className="text-[10px] opacity-50">Rapid</p>
+                      <p className="text-[10px] opacity-50">{t.lobby.rapid}</p>
                     </div>
                     <div
                       className={`mode-card rounded-lg p-3 flex items-center justify-between cursor-pointer px-4 ${selectedControl === '15 | 10' ? 'active' : ''}`}
@@ -553,9 +559,9 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                     >
                       <div className="flex items-center gap-4">
                         <span className="material-symbols-outlined text-secondary">pace</span>
-                        <p className="font-bold text-sm">15 | 10</p>
+                        <p className="font-bold text-sm">{t.lobby.time_15_10}</p>
                       </div>
-                      <p className="text-[10px] opacity-50">Rapid</p>
+                      <p className="text-[10px] opacity-50">{t.lobby.rapid}</p>
                     </div>
                   </div>
                 </div>
@@ -569,7 +575,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                     className="mode-card flex flex-col items-center justify-center gap-1 py-3 border border-outline-variant text-on-surface rounded-xl hover:bg-surface-container-highest transition-all group"
                   >
                     <span className="material-symbols-outlined text-on-surface-variant group-hover:text-secondary">add_circle</span>
-                    <span className="text-[11px] font-bold">Create Room</span>
+                    <span className="text-[11px] font-bold">{t.lobby.create_room}</span>
                   </button>
 
                   <button
@@ -577,7 +583,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                     className="mode-card flex flex-col items-center justify-center gap-1 py-3 border border-outline-variant text-on-surface rounded-xl hover:bg-surface-container-highest transition-all group"
                   >
                     <span className="material-symbols-outlined text-on-surface-variant group-hover:text-secondary">search</span>
-                    <span className="text-[11px] font-bold">Find Room</span>
+                    <span className="text-[11px] font-bold">{t.lobby.find_room}</span>
                   </button>
                 </div>
 
@@ -586,7 +592,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                   className="mode-card w-full flex items-center justify-center gap-4 py-3 bg-surface-container-high border border-outline-variant text-on-surface rounded-xl hover:bg-surface-container-highest transition-all group"
                 >
                   <span className="material-symbols-outlined text-on-surface-variant group-hover:text-secondary">smart_toy</span>
-                  <span className="text-sm font-bold">Play with AI</span>
+                  <span className="text-sm font-bold">{t.lobby.play_ai}</span>
                 </button>
 
                 <button
@@ -594,7 +600,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                   className="mode-card w-full flex items-center justify-center gap-4 py-3 bg-surface-container-high border border-outline-variant text-on-surface rounded-xl hover:bg-surface-container-highest transition-all group"
                 >
                   <span className="material-symbols-outlined text-on-surface-variant group-hover:text-secondary">groups</span>
-                  <span className="text-sm font-bold">1 Device 2 Players</span>
+                  <span className="text-sm font-bold">{t.lobby.offline_2p}</span>
                 </button>
 
                 <button
@@ -606,7 +612,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                   className="mode-card w-full flex items-center justify-center gap-4 py-3 bg-secondary/10 border border-secondary/30 text-secondary rounded-xl hover:bg-secondary/20 transition-all group shadow-[0_0_15px_rgba(168,214,56,0.1)]"
                 >
                   <span className="material-symbols-outlined text-secondary group-hover:scale-110 transition-transform">extension</span>
-                  <span className="text-sm font-black tracking-wide">Random Puzzle</span>
+                  <span className="text-sm font-black tracking-wide">{t.lobby.random_puzzle}</span>
                 </button>
               </section>
 
@@ -616,8 +622,8 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                   onClick={handlePlayNow}
                   className="w-full py-6 bg-secondary text-on-secondary rounded-xl font-black text-xl hover:scale-[1.02] active:scale-95 transition-all shadow-[0_10px_30px_rgba(168,214,56,0.2)] flex flex-col items-center gap-1"
                 >
-                  <span>PLAY NOW (Matchmaking)</span>
-                  <span className="text-[10px] font-mono opacity-80 font-medium tracking-wider">Mode: {selectedControl}</span>
+                  <span>{t.lobby.play_now}</span>
+                  <span className="text-[10px] font-mono opacity-80 font-medium tracking-wider">{t.lobby.mode_label.replace('{mode}', selectedControl)}</span>
                 </button>
               </section>
 
@@ -626,11 +632,11 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                 <div className="p-4 rounded-xl bg-gradient-to-br from-secondary/20 to-primary/10 border border-secondary/30">
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <span className="material-symbols-outlined text-secondary text-sm">trophy</span>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-secondary">Grand Prix Blitz</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-secondary">{t.lobby.grand_prix}</p>
                   </div>
-                  <p className="text-[11px] text-on-surface-variant mb-3 leading-relaxed">Arena starts in 45m. Top ELO competitors only.</p>
+                  <p className="text-[11px] text-on-surface-variant mb-3 leading-relaxed">{t.lobby.arena_starts}</p>
                   <button className="w-full py-2 bg-white text-slate-900 rounded-lg font-bold text-xs hover:bg-secondary hover:text-on-secondary transition-colors">
-                    Register Now
+                    {t.lobby.register_now}
                   </button>
                 </div>
               </section>
@@ -640,11 +646,11 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
           {/* Footer */}
           <footer className={`fixed bottom-0 left-64 ${currentTab === 'play' ? 'right-[400px]' : 'right-0'} py-2 bg-surface-container-lowest/50 backdrop-blur-sm border-t border-outline-variant z-10`}>
             <div className="flex justify-between items-center max-w-7xl mx-auto px-10">
-              <span className="font-mono text-[10px] text-secondary">© 2026 Chess3D</span>
+              <span className="font-mono text-[10px] text-secondary">{t.lobby.copyright}</span>
               <div className="flex gap-4">
-                <a className="text-[11px] text-on-surface-variant hover:text-secondary transition-all" href="#">Language</a>
-                <a className="text-[11px] text-on-surface-variant hover:text-secondary transition-all" href="#">Help</a>
-                <a className="text-[11px] text-on-surface-variant hover:text-secondary transition-all" href="#">About</a>
+                <a className="text-[11px] text-on-surface-variant hover:text-secondary transition-all" href="#">{t.lobby.footer_language}</a>
+                <a className="text-[11px] text-on-surface-variant hover:text-secondary transition-all" href="#">{t.lobby.footer_help}</a>
+                <a className="text-[11px] text-on-surface-variant hover:text-secondary transition-all" href="#">{t.lobby.footer_about}</a>
               </div>
             </div>
           </footer>
@@ -657,23 +663,23 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
           <div className="bg-[#0c141a] border border-[#414942] rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
             <h2 className="text-xl font-bold mb-4 text-[#dbe3ec] flex items-center gap-2">
               <span className="material-symbols-outlined text-secondary">add_circle</span>
-              Tạo Phòng Mới
+              {t.lobby.create_room_title}
             </h2>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#c1c9c0] mb-1.5">Tên Phòng</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#c1c9c0] mb-1.5">{t.lobby.room_name_label}</label>
                 <input
                   type="text"
                   value={roomName}
                   onChange={(e) => setRoomName(e.target.value)}
                   className="w-full px-4 py-2.5 bg-[#070f15]/50 border border-[#414942] rounded-xl focus:outline-none focus:border-secondary text-[#dbe3ec] text-sm transition-all"
-                  placeholder="Nhập tên phòng..."
+                  placeholder={t.lobby.room_name_placeholder}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#c1c9c0] mb-1.5">Mật Khẩu</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#c1c9c0] mb-1.5">{t.lobby.password_label}</label>
                 <div className="relative">
                   <span className="material-symbols-outlined absolute left-3.5 top-3 text-[#c1c9c0]">lock</span>
                   <input
@@ -681,7 +687,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 bg-[#070f15]/50 border border-[#414942] rounded-xl focus:outline-none focus:border-secondary text-[#dbe3ec] text-sm transition-all"
-                    placeholder="Để trống nếu muốn tạo phòng công cộng..."
+                    placeholder={t.lobby.password_placeholder}
                   />
                 </div>
               </div>
@@ -695,13 +701,13 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                   }}
                   className="flex-1 py-2.5 bg-[#232b31] hover:bg-[#2e363c] text-[#dbe3ec] font-bold rounded-xl transition-all text-sm"
                 >
-                  Hủy
+                  {t.lobby.cancel}
                 </button>
                 <button
                   onClick={handleCreateRoom}
                   className="flex-1 py-2.5 bg-secondary hover:brightness-110 text-on-secondary font-bold rounded-xl transition-all text-sm shadow-[0_0_15px_rgba(168,214,56,0.2)]"
                 >
-                  Tạo phòng
+                  {t.lobby.create}
                 </button>
               </div>
             </div>
@@ -716,7 +722,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-[#dbe3ec] flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">search</span>
-                Danh sách phòng chờ
+                {t.lobby.room_list_title}
               </h2>
               <button
                 onClick={() => setShowSearchModal(false)}
@@ -728,21 +734,21 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
 
             {/* Quick Join via Room Code */}
             <div className="mb-6 pb-6 border-b border-[#414942]">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-[#c1c9c0] mb-2">Vào bằng mã phòng (Room Code)</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#c1c9c0] mb-2">{t.lobby.join_by_code}</label>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={roomCodeInput}
                   onChange={(e) => setRoomCodeInput(e.target.value)}
                   className="flex-1 px-4 py-2 bg-[#070f15]/50 border border-[#414942] rounded-xl focus:outline-none focus:border-secondary text-[#dbe3ec] text-sm transition-all"
-                  placeholder="Nhập mã phòng (ví dụ: -Ny...)"
+                  placeholder={t.lobby.room_code_placeholder}
                   onKeyDown={(e) => e.key === 'Enter' && handleJoinByCode()}
                 />
                 <button
                   onClick={handleJoinByCode}
                   className="px-4 py-2 bg-secondary text-on-secondary font-bold rounded-xl hover:brightness-110 active:scale-95 transition-all text-sm shadow-[0_0_10px_rgba(168,214,56,0.2)]"
                 >
-                  Vào nhanh
+                  {t.lobby.join_now}
                 </button>
               </div>
             </div>
@@ -751,8 +757,8 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
               {rooms.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-slate-500">
                   <span className="material-symbols-outlined text-3xl opacity-40 mb-2">groups</span>
-                  <p className="text-sm">Chưa có phòng nào đang chờ.</p>
-                  <p className="text-xs opacity-75 mt-1">Hãy tạo một phòng mới!</p>
+                  <p className="text-sm">{t.lobby.no_rooms}</p>
+                  <p className="text-xs opacity-75 mt-1">{t.lobby.create_one}</p>
                 </div>
               ) : (
                 rooms.map((room) => (
@@ -775,10 +781,10 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                           ⏱️ {room.timeControl || '10 min'}
                         </span>
                       </h3>
-                      <p className="text-xs text-slate-400 mt-1">Số người chơi: {room.playerCount}/2</p>
+                      <p className="text-xs text-slate-400 mt-1">{t.lobby.players_count.replace('{count}', String(room.playerCount))}</p>
                     </div>
                     <div className="flex items-center gap-1 text-secondary font-bold text-sm">
-                      <span>Vào phòng</span>
+                      <span>{t.lobby.enter_room}</span>
                       <span className="material-symbols-outlined text-sm transition-transform group-hover:translate-x-0.5">chevron_right</span>
                     </div>
                   </div>
@@ -793,14 +799,14 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
       {showJoinModal && selectedRoom && (
         <div className="fixed inset-0 bg-[#070f15]/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
           <div className="bg-[#0c141a] border border-[#414942] rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h2 className="text-xl font-bold mb-2 text-[#dbe3ec]">Vào Phòng</h2>
+            <h2 className="text-xl font-bold mb-2 text-[#dbe3ec]">{t.lobby.join_room_title}</h2>
             <p className="text-sm text-[#c1c9c0] mb-4">
-              Bạn đang tham gia phòng: <span className="text-secondary font-semibold">{selectedRoom.roomName}</span>
+              {t.lobby.joining_room} <span className="text-secondary font-semibold">{selectedRoom.roomName}</span>
             </p>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#c1c9c0] mb-1.5">Mật Khẩu Phòng</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#c1c9c0] mb-1.5">{t.lobby.room_password}</label>
                 <div className="relative">
                   <span className="material-symbols-outlined absolute left-3.5 top-3 text-[#c1c9c0]">lock</span>
                   <input
@@ -808,7 +814,7 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                     value={joinPassword}
                     onChange={(e) => setJoinPassword(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 bg-[#070f15]/50 border border-[#414942] rounded-xl focus:outline-none focus:border-secondary text-[#dbe3ec] text-sm transition-all"
-                    placeholder="Nhập mật khẩu..."
+                    placeholder={t.lobby.password_input_placeholder}
                     onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
                   />
                 </div>
@@ -823,13 +829,13 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                   }}
                   className="flex-1 py-2.5 bg-[#232b31] hover:bg-[#2e363c] text-[#dbe3ec] font-bold rounded-xl transition-all text-sm"
                 >
-                  Hủy
+                  {t.lobby.cancel}
                 </button>
                 <button
                   onClick={handleJoinRoom}
                   className="flex-1 py-2.5 bg-secondary hover:brightness-110 text-on-secondary font-bold rounded-xl transition-all text-sm"
                 >
-                  Vào chơi
+                  {t.lobby.join_play}
                 </button>
               </div>
             </div>
@@ -851,21 +857,21 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
 
             <h2 className="text-2xl font-black mb-4 text-[#dbe3ec] flex items-center justify-center gap-2 mt-2">
               <span className="material-symbols-outlined text-red-500">favorite</span>
-              Donate Us
+              {t.lobby.donate_title}
             </h2>
 
             {/* QR Image wrapper */}
             <div className="bg-white p-4 rounded-3xl inline-block mb-5 shadow-inner">
               <img
                 src="/images/donate-qr-code.png"
-                alt="Donate QR Code"
+                alt={t.lobby.donate_qr_alt}
                 className="w-64 h-64 object-contain"
               />
             </div>
 
             {/* Thank you note */}
             <p className="text-sm text-[#c1c9c0] leading-relaxed max-w-xs mx-auto">
-              Xin 5k ăn mì ik
+              {t.lobby.donate_message}
             </p>
           </div>
         </div>
@@ -877,11 +883,11 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
           <div className="bg-[#0c141a] border border-[#414942] rounded-3xl p-6 w-full max-w-sm shadow-2xl relative text-center animate-scaleUp">
             <h2 className="text-xl font-bold mb-4 text-[#dbe3ec] flex items-center justify-center gap-2 mt-2">
               <span className="material-symbols-outlined text-secondary">explore</span>
-              No room found
+              {t.lobby.no_room_title}
             </h2>
 
             <p className="text-sm text-[#c1c9c0] leading-relaxed mb-6 max-w-xs mx-auto">
-              No room found with selected game mode <span className="text-secondary font-bold">{selectedControl}</span>. Bạn có muốn tự tạo một phòng mới với chế độ này không?
+              {t.lobby.no_room_desc.replace('{mode}', selectedControl)}
             </p>
 
             <div className="flex gap-3 pt-2">
@@ -889,13 +895,13 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
                 onClick={() => setShowNoRoomModal(false)}
                 className="flex-1 py-2.5 bg-[#232b31] hover:bg-[#2e363c] text-[#dbe3ec] font-bold rounded-xl transition-all text-sm"
               >
-                Hủy
+                {t.lobby.cancel}
               </button>
               <button
                 onClick={handleAutoCreateRoom}
                 className="flex-1 py-2.5 bg-secondary hover:brightness-110 text-on-secondary font-bold rounded-xl transition-all text-sm shadow-[0_0_15px_rgba(168,214,56,0.3)]"
               >
-                Create
+                {t.lobby.create}
               </button>
             </div>
           </div>

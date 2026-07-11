@@ -324,11 +324,11 @@ export const useChessStore = create<ChessState>((set, get) => ({
         const { isAI: currentIsAI, isOffline: currentIsOffline } = get();
         if ((currentIsAI || currentIsOffline) && (status === 'checkmate' || status === 'draw' || status === 'stalemate')) {
           if (status === 'checkmate') {
-            stateUpdate.matchResult = { winner: move.color, reason: 'Chiếu hết (Checkmate)' };
+            stateUpdate.matchResult = { winner: move.color, reason: 'checkmate' };
           } else if (status === 'stalemate') {
-            stateUpdate.matchResult = { winner: 'draw', reason: 'Hết nước đi (Stalemate)' };
+            stateUpdate.matchResult = { winner: 'draw', reason: 'stalemate' };
           } else {
-            stateUpdate.matchResult = { winner: 'draw', reason: 'Hòa (Draw)' };
+            stateUpdate.matchResult = { winner: 'draw', reason: 'draw' };
           }
         }
         

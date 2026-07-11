@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useChessStore } from '@/store/useChessStore';
 import { database } from '@/lib/firebase';
 import { ref, update } from 'firebase/database';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 function formatTime(ms: number): string {
   if (ms <= 0) return '00:00.0';
@@ -28,6 +29,7 @@ interface GameHeaderProps {
 }
 
 export function GameHeader({ type }: GameHeaderProps) {
+  const { t } = useLanguage();
   const turn = useChessStore((state) => state.turn);
   const gameStatus = useChessStore((state) => state.gameStatus);
   const online = useChessStore((state) => state.online);
@@ -57,7 +59,7 @@ export function GameHeader({ type }: GameHeaderProps) {
   const isGameRunning = gameStatus === 'active' || gameStatus === 'check';
   const isCardTurn = turn === cardColor && isGameRunning;
 
-  const colorText = cardColor === 'w' ? 'White' : 'Black';
+  const colorText = cardColor === 'w' ? t.game.white : t.game.black;
   const colorEmoji = cardColor === 'w' ? '⚪' : '⚫';
 
   // Determine player presence (online mode only)
@@ -71,21 +73,21 @@ export function GameHeader({ type }: GameHeaderProps) {
   let displayName = '';
   if (isAI) {
     if (type === 'self') {
-      displayName = `Bạn (${colorText})`;
+      displayName = t.game_header.self_label.replace('{color}', colorText);
     } else {
-      displayName = `AI Bot (${aiBotElo} ELO)`;
+      displayName = t.game_header.ai_bot_label.replace('{elo}', String(aiBotElo ?? '?'));
     }
   } else if (onlineRoomId) {
     if (type === 'self') {
-      displayName = `Bạn (${colorText})`;
+      displayName = t.game_header.self_label.replace('{color}', colorText);
     } else {
-      displayName = `Đối thủ (${colorText})`;
+      displayName = t.game_header.opponent_label.replace('{color}', colorText);
     }
   } else {
     if (type === 'self') {
-      displayName = `White (You)`;
+      displayName = t.game_header.offline_self;
     } else {
-      displayName = `Black (Opponent)`;
+      displayName = t.game_header.offline_opponent;
     }
   }
 
@@ -132,7 +134,7 @@ export function GameHeader({ type }: GameHeaderProps) {
         if (isOffline) {
           useChessStore.setState({
             gameStatus: 'timeout',
-            matchResult: { winner, reason: 'Hết giờ (Timeout)' }
+            matchResult: { winner, reason: 'timeout' }
           });
         } else if (onlineRoomId) {
           // Only the player who timed out triggers the database update to avoid race conditions
@@ -182,7 +184,7 @@ export function GameHeader({ type }: GameHeaderProps) {
 
             {isChecked && (
               <span className="bg-red-600/90 text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow-[0_2px_6px_rgba(220,38,38,0.4)] tracking-wider animate-pulse">
-                CHECK
+                {t.game.check_label}
               </span>
             )}
           </div>
