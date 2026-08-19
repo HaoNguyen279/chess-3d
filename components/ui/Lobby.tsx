@@ -41,7 +41,15 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
   const [roomName, setRoomName] = useState('');
   const [password, setPassword] = useState('');
   const [joinPassword, setJoinPassword] = useState('');
-  const [userId, setUserId] = useState('');
+  const [userId] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    let stored = localStorage.getItem('chess_user_id');
+    if (!stored) {
+      stored = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('chess_user_id', stored);
+    }
+    return stored;
+  });
   const [showNoRoomModal, setShowNoRoomModal] = useState(false);
 
   // Selected time control (default to '10 min' )
@@ -50,20 +58,13 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
   const [currentTab, setCurrentTab] = useState<'play' | 'ai' | 'leaderboard' | 'watch'>('play');
 
   useEffect(() => {
-    let storedUserId = localStorage.getItem('chess_user_id');
-    if (!storedUserId) {
-      storedUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      localStorage.setItem('chess_user_id', storedUserId);
-    }
-    setUserId(storedUserId);
-
     const roomsRef = ref(database, 'rooms');
     const unsubscribe = onValue(roomsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const roomsList: Room[] = Object.entries(data).map(([id, room]: [string, any]) => ({
+        const roomsList: Room[] = Object.entries(data).map(([id, room]: [string, Record<string, unknown>]) => ({
           id,
-          ...room,
+          ...(room as Room),
         }));
         setRooms(roomsList.filter((r) => r.status === 'waiting'));
       } else {
@@ -179,9 +180,9 @@ export function Lobby({ onJoinRoom, onStartOffline, onPlayBot }: LobbyProps) {
 
       let matchedRoom: Room | null = null;
       if (data) {
-        const roomsList: Room[] = Object.entries(data).map(([id, r]: [string, any]) => ({
+        const roomsList: Room[] = Object.entries(data).map(([id, r]: [string, Record<string, unknown>]) => ({
           id,
-          ...r,
+          ...(r as Room),
         }));
 
         // Find public room with same mode, only 1 player, waiting

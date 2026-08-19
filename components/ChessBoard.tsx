@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { GLTF } from 'three-stdlib';
-import { useChessStore, ChessPiece as ChessPieceType } from '@/store/useChessStore';
+import { useChessStore } from '@/store/useChessStore';
 import { ChessPiece } from './ChessPiece';
 import { ChessSquare } from './ChessSquare';
 import { PIECE_SCALE } from '@/lib/chess-constants';
@@ -59,7 +59,7 @@ export function ChessBoard() {
 
   const lastMove = useMemo(() => {
     if (moveHistoryLength === 0) return null;
-    const history = game.history({ verbose: true }) as any[];
+    const history = game.history({ verbose: true });
     return history.length > 0 ? history[history.length - 1] : null;
   }, [game, moveHistoryLength]);
 
@@ -75,7 +75,7 @@ export function ChessBoard() {
       };
     }
     return null;
-  }, [game, moveHistoryLength, pieces]);
+  }, [game, pieces]);
 
   // Upgrade standard materials to physical materials to enable high-quality clearcoat lacquer reflections
   const physicalMaterials = useMemo(() => {

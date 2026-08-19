@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useChessStore } from '@/store/useChessStore';
 import { database } from '@/lib/firebase';
 import { ref, update } from 'firebase/database';
@@ -91,30 +91,19 @@ export function GameHeader({ type }: GameHeaderProps) {
     }
   }
 
-  // Local state to display real-time clock tickdown without polluting store too often
-  const [displayClocks, setDisplayClocks] = useState<{ white: number; black: number }>({ white: 0, black: 0 });
-
-  useEffect(() => {
-    if (clocks) {
-      setDisplayClocks({ white: clocks.white, black: clocks.black });
-    }
-  }, [clocks]);
+  // Ticking clock display: derive live values from store clocks.
+  // A tick state forces re-render so the countdown animates in real time.
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     if (!clocks || !isGameRunning) return;
-
-    // Only tick when the game is actually playing (if online)
     if (onlineRoomId && roomStatus !== 'playing') return;
-
-    // Do NOT tick down the clocks if the game just started and no moves have been made yet
-    if (moveHistoryLength === 0) {
-      setDisplayClocks({ white: clocksWhite, black: clocksBlack });
-      return;
-    }
+    if (moveHistoryLength === 0) return;
 
     const interval = setInterval(() => {
-      const elapsed = Date.now() - clocksLastMoveTime;
+      setTick((v) => v + 1);
 
+      const elapsed = Date.now() - clocksLastMoveTime;
       let whiteTime = clocksWhite;
       let blackTime = clocksBlack;
 
@@ -123,8 +112,6 @@ export function GameHeader({ type }: GameHeaderProps) {
       } else {
         blackTime = Math.max(0, clocksBlack - elapsed);
       }
-
-      setDisplayClocks({ white: whiteTime, black: blackTime });
 
       // Handle timeout check
       if (whiteTime <= 0 || blackTime <= 0) {
@@ -137,7 +124,6 @@ export function GameHeader({ type }: GameHeaderProps) {
             matchResult: { winner, reason: 'timeout' }
           });
         } else if (onlineRoomId) {
-          // Only the player who timed out triggers the database update to avoid race conditions
           if (onlineMyColor === turn) {
             const roomRef = ref(database, `rooms/${onlineRoomId}`);
             update(roomRef, {
@@ -151,7 +137,20 @@ export function GameHeader({ type }: GameHeaderProps) {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [clocksWhite, clocksBlack, clocksLastMoveTime, turn, gameStatus, isOffline, onlineRoomId, onlineMyColor, roomStatus, moveHistoryLength, isGameRunning, clocks]);
+  }, [clocksWhite, clocksBlack, clocksLastMoveTime, turn, gameStatus, isOffline, onlineRoomId, onlineMyColor, roomStatus, moveHistoryLength, isGameRunning]);
+
+  const displayClocks = useMemo(() => {
+    if (!clocks || moveHistoryLength === 0) {
+      return { white: clocksWhite, black: clocksBlack };
+    }
+    // Date.now() is necessary to calculate real-time elapsed clock
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const elapsed = Date.now() - clocksLastMoveTime;
+    return {
+      white: Math.max(0, clocksWhite - (turn === 'w' ? elapsed : 0)),
+      black: Math.max(0, clocksBlack - (turn === 'b' ? elapsed : 0)),
+    };
+  }, [clocks, moveHistoryLength, clocksWhite, clocksBlack, clocksLastMoveTime, turn]);
 
   const timeValue = cardColor === 'w' ? displayClocks.white : displayClocks.black;
   const isTimeLow = timeValue < 15000 && clocks; // 15 seconds

@@ -17,8 +17,8 @@ interface ScatteredGrassProps {
  */
 export function ScatteredGrass({ count = 2000 }: ScatteredGrassProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const materialRef = useRef<any>(null);
-  const depthMaterialRef = useRef<any>(null);
+  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
+  const depthMaterialRef = useRef<THREE.MeshDepthMaterial>(null);
 
   // Load the high-quality plant textures present in the workspace
   // plants_0002_color_1k.jpg (color) and plants_0002_opacity_1k.jpg (transparency)
@@ -209,7 +209,7 @@ export function ScatteredGrass({ count = 2000 }: ScatteredGrassProps) {
   return (
     <instancedMesh
       ref={meshRef}
-      args={[crossedGeometry, null as any, count]}
+      args={[crossedGeometry, null as unknown as THREE.Material, count]}
       castShadow
       receiveShadow
       material={customMaterial}

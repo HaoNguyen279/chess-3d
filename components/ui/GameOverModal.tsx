@@ -12,12 +12,9 @@ export function GameOverModal({ onBackToLobby }: GameOverModalProps) {
   const { t } = useLanguage();
   const matchResult = useChessStore((state) => state.matchResult);
   const online = useChessStore((state) => state.online);
-  const isOffline = useChessStore((state) => state.isOffline);
   const isAI = useChessStore((state) => state.isAI);
   const aiBotId = useChessStore((state) => state.aiBotId);
   const disconnectRoom = useChessStore((state) => state.disconnectRoom);
-  const isReviewing = useChessStore((state) => state.isReviewing);
-  const startReview = useChessStore((state) => state.startReview);
 
   // Show modal if there is a winner, regardless of online or offline mode
   if (!matchResult.winner) return null;

@@ -1,21 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useProgress } from '@react-three/drei';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useMounted } from '@/lib/useMounted';
 
 export function LoadingAsset() {
   const { t } = useLanguage();
   const { active, progress } = useProgress();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useMounted();
 
   // Only show when mounted, and hide when loading is finished.
-  // We consider it finished when it's no longer active and progress reached 100.
-  // Note: During initial render before Canvas starts loading, active might be false and progress 0, we show it then too.
   if (!mounted) return null;
   if (!active && progress === 100) return null;
 

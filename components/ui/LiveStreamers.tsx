@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Platform {
@@ -25,12 +25,10 @@ export function LiveStreamers() {
   const { t } = useLanguage();
   const [streamers, setStreamers] = useState<Streamer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hostname, setHostname] = useState('localhost');
+  const hostname = useMemo(() => typeof window !== 'undefined' ? window.location.hostname : 'localhost', []);
   const [loadedCount, setLoadedCount] = useState(0);
 
   useEffect(() => {
-    setHostname(window.location.hostname);
-    
     const fetchStreamers = async () => {
       try {
         const res = await fetch('https://api.chess.com/pub/streamers');

@@ -36,8 +36,13 @@ const STARTING_PIECES: PieceInfo[] = [
   ...Array.from({ length: 8 }, (_, i) => ({ type: 'p' as const, color: 'b' as const, square: `${'abcdefgh'[i]}7` })),
 ];
 
+interface GLTFWithNodes {
+  nodes: Record<string, { geometry: THREE.BufferGeometry }>;
+  materials: Record<string, THREE.Material>;
+}
+
 function ChessSetShowcase() {
-  const { nodes, materials } = useGLTF('/models/source/chess_set_4k.gltf') as any;
+  const { nodes, materials } = useGLTF('/models/source/chess_set_4k.gltf') as GLTFWithNodes;
 
   const geometries = useMemo(() => ({
     w: {

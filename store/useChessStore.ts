@@ -17,6 +17,46 @@ export type GameStatus = 'active' | 'check' | 'checkmate' | 'draw' | 'stalemate'
 
 let firebaseUnsubscribe: Unsubscribe | null = null;
 let statusUnsubscribe: Unsubscribe | null = null;
+let connectionUnsubscribe: Unsubscribe | null = null;
+let puzzleAutoPlayTimer: ReturnType<typeof setTimeout> | null = null;
+
+function setupFirebaseConnectionMonitor(roomId: string) {
+  // Monitor Firebase connection status
+  const infoRef = ref(database, '.info/connected');
+  connectionUnsubscribe = onValue(infoRef, (snap) => {
+    const connected = snap.val() as boolean;
+    if (!connected) {
+      const state = useChessStore.getState();
+      if (state.online.roomId === roomId && state.roomStatus === 'playing') {
+        useChessStore.setState({ roomStatus: 'disconnected' });
+      }
+    } else {
+      // Reconnected - verify room still exists and re-sync
+      const state = useChessStore.getState();
+      if (state.online.roomId === roomId && state.roomStatus === 'disconnected') {
+        const roomRef = ref(database, `rooms/${roomId}`);
+        firebaseGet(roomRef)
+          .then((snap) => {
+            if (snap.exists()) {
+              useChessStore.setState({ roomStatus: 'playing' });
+            } else {
+              useChessStore.setState({ roomStatus: 'disconnected' });
+            }
+          })
+          .catch(() => {
+            useChessStore.setState({ roomStatus: 'disconnected' });
+          });
+      }
+    }
+  });
+}
+
+interface PuzzleData {
+  title: string;
+  fen: string;
+  pgn: string;
+  url?: string;
+}
 
 interface ChessState {
   game: Chess;
@@ -44,7 +84,7 @@ interface ChessState {
   };
   isReviewing: boolean;
   isPuzzleMode: boolean;
-  puzzleData: any | null;
+  puzzleData: PuzzleData | null;
   puzzleSolution: Move[];
   puzzleMoveIndex: number;
   puzzleState: 'loading' | 'playing' | 'wrong' | 'solved' | null;
@@ -229,7 +269,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
         let nextPieces = [...pieces];
         
         // Compute clocks deduction and transition
-        let nextClocks = currentClocks ? { ...currentClocks } : null;
+        const nextClocks = currentClocks ? { ...currentClocks } : null;
         if (nextClocks && timeControl) {
           const config = parseTimeControl(timeControl);
           const isFirstMove = moveHistory.length === 0;
@@ -333,7 +373,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
         }
         
         // Handle Puzzle Mode Logic
-        const { isPuzzleMode, puzzleSolution, puzzleMoveIndex } = get();
+        const { isPuzzleMode, puzzleSolution, puzzleMoveIndex, puzzleState: currentPuzzleState } = get();
         if (isPuzzleMode && !isRemote) {
           const expectedMove = puzzleSolution[puzzleMoveIndex];
           if (expectedMove && move.san === expectedMove.san) {
@@ -344,15 +384,14 @@ export const useChessStore = create<ChessState>((set, get) => ({
             }
             set(stateUpdate);
             
-            // Auto-play opponent's move
-            if (stateUpdate.puzzleState !== 'solved') {
-              setTimeout(() => {
-                const { puzzleSolution: curSol, puzzleMoveIndex: curIdx, puzzleState: curState } = get();
-                if (curState === 'playing') {
-                  const nextMove = curSol[curIdx];
+            // Auto-play opponent's move (only if not already in wrong/solved state)
+            if (stateUpdate.puzzleState !== 'solved' && currentPuzzleState === 'playing') {
+              const autoPlayTimer = setTimeout(() => {
+                const latestState = get();
+                if (latestState.puzzleState === 'playing' && latestState.puzzleMoveIndex < latestState.puzzleSolution.length) {
+                  const nextMove = latestState.puzzleSolution[latestState.puzzleMoveIndex];
                   if (nextMove) {
-                    get().movePiece(nextMove.from, nextMove.to, true);
-                    // After opponent moves, increment index again
+                    latestState.movePiece(nextMove.from, nextMove.to, true);
                     set((state) => ({ 
                       puzzleMoveIndex: state.puzzleMoveIndex + 1,
                       puzzleState: state.puzzleMoveIndex + 1 >= state.puzzleSolution.length ? 'solved' : 'playing'
@@ -360,10 +399,17 @@ export const useChessStore = create<ChessState>((set, get) => ({
                   }
                 }
               }, 500);
+              
+              // Store timer ID for cleanup on retry
+              puzzleAutoPlayTimer = autoPlayTimer;
             }
             return true;
           } else {
-            // Wrong move
+            // Wrong move - clear any pending auto-play timer
+            if (puzzleAutoPlayTimer) {
+              clearTimeout(puzzleAutoPlayTimer);
+              puzzleAutoPlayTimer = null;
+            }
             stateUpdate.puzzleState = 'wrong';
             set(stateUpdate);
             return false;
@@ -375,7 +421,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
         const { online, isOffline } = get();
         if (!isRemote && online.roomId && !isOffline) {
           const roomRef = ref(database, `rooms/${online.roomId}`);
-          const updates: any = {
+          const updates: Record<string, unknown> = {
             'gameState/lastMove': {
               from,
               to,
@@ -408,7 +454,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
         
         return true;
       }
-    } catch (_error) {
+    } catch {
       // fail silently — chess.js throws for invalid moves, handled by caller
     }
     
@@ -450,7 +496,6 @@ export const useChessStore = create<ChessState>((set, get) => ({
     if (lastMove) {
       const newCaptured = { ...capturedPieces };
       if (lastMove.captured) {
-        const capturedType = lastMove.captured as PieceType;
         if (lastMove.color === 'w') {
           newCaptured.white.pop();
         } else {
@@ -498,6 +543,9 @@ export const useChessStore = create<ChessState>((set, get) => ({
       playerCount: 1,
       players: myColor === 'w' ? { white: 'placeholder' } : { black: 'placeholder' }
     });
+    
+    // Monitor connection status
+    setupFirebaseConnectionMonitor(roomId);
     
     // Set up disconnect listener to remove our player node if tab is closed
     const myPlayerPath = myColor === 'w' ? 'players/white' : 'players/black';
@@ -595,7 +643,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
       firebaseGet(roomRef).then((snapshot) => {
         const roomData = snapshot.val();
         if (roomData) {
-          const updates: any = {};
+          const updates: Record<string, unknown> = {};
           const newPlayerCount = Math.max(0, roomData.playerCount - 1);
           updates[`playerCount`] = newPlayerCount;
           
@@ -623,6 +671,10 @@ export const useChessStore = create<ChessState>((set, get) => ({
     if (statusUnsubscribe) {
       statusUnsubscribe();
       statusUnsubscribe = null;
+    }
+    if (connectionUnsubscribe) {
+      connectionUnsubscribe();
+      connectionUnsubscribe = null;
     }
     set({ 
       online: { roomId: null, myColor: null }, 

@@ -3,14 +3,27 @@
 import { useEffect, useRef } from 'react';
 import { useChessStore } from '@/store/useChessStore';
 import { StockfishEngine, CandidateMove } from './stockfishEngine';
+import { Square } from 'chess.js';
 
 interface LowEloProfile {
   elo: number;
   multipv: number;
-  maxEvalLoss: number; // centipawns limit
-  weights: number[]; // % probability for top N moves
+  maxEvalLoss: number;
+  weights: number[];
   randomDelayMin: number;
   randomDelayMax: number;
+}
+
+interface GameStateSnapshot {
+  isAI: boolean;
+  turn: 'w' | 'b';
+  aiColor: 'w' | 'b' | null;
+  aiBotElo: number | null;
+  gameStatus: string;
+  fen: string;
+  moveHistory: string[];
+  matchResult: { winner: 'w' | 'b' | 'draw' | null };
+  movePiece: (from: Square, to: Square) => boolean;
 }
 
 const LOW_ELO_PROFILES: LowEloProfile[] = [
@@ -76,7 +89,12 @@ function getGamePhase(fen: string): 'opening' | 'middlegame' | 'endgame' {
   return 'middlegame';
 }
 
-function selectHumanizedMove(bestMove: {from: string, to: string, promotion?: string}, candidates: CandidateMove[], profile: LowEloProfile, state: any) {
+function selectHumanizedMove(
+  bestMove: { from: string; to: string; promotion?: string },
+  candidates: CandidateMove[],
+  profile: LowEloProfile,
+  state: GameStateSnapshot
+): { from: string; to: string; promotion?: string } {
   if (candidates.length <= 1) return bestMove;
   if (state.gameStatus === 'check') return bestMove;
   
@@ -89,9 +107,7 @@ function selectHumanizedMove(bestMove: {from: string, to: string, promotion?: st
   if (phase === 'endgame') effectiveMaxEvalLoss *= 1.5;
   else if (phase === 'opening') effectiveMaxEvalLoss *= 0.7;
 
-  // Blunder chance (e.g. 8% at 100, tapering down)
-  let blunderChance = Math.max(0, 0.08 - ((profile.elo - 100) / 800) * 0.08);
-  if (phase === 'endgame') blunderChance *= 1.5;
+  const blunderChance = Math.max(0, 0.08 - ((profile.elo - 100) / 800) * 0.08) * (phase === 'endgame' ? 1.5 : 1);
 
   if (Math.random() < blunderChance) {
     const nonMateCandidates = candidates.filter(c => !(c.mate !== null && c.mate < 0));
@@ -119,13 +135,13 @@ function selectHumanizedMove(bestMove: {from: string, to: string, promotion?: st
   const lastMoves = state.moveHistory.slice(-4);
   const activeWeights = validCandidates.map((c, i) => {
     let w = profile.weights[i] || 0;
-    if (lastMoves.some((m: any) => m.from === c.from && m.to === c.to)) {
-      w *= 0.2; // Severely deprioritize exact repetitions
+    if (lastMoves.some((m) => m === `${c.from}${c.to}`)) {
+      w *= 0.2;
     }
     return w;
   });
 
-  let totalWeight = activeWeights.reduce((a, b) => a + b, 0);
+  const totalWeight = activeWeights.reduce((a, b) => a + b, 0);
   let random = Math.random() * totalWeight;
   for (let i = 0; i < validCandidates.length; i++) {
     random -= activeWeights[i];
@@ -137,17 +153,17 @@ function selectHumanizedMove(bestMove: {from: string, to: string, promotion?: st
   return bestMove;
 }
 
+type AILifecycleState = 'idle' | 'initializing' | 'ready' | 'thinking' | 'error';
+
 /**
  * React hook that manages the AI player lifecycle.
- * When AI mode is active and it's the AI's turn, this hook:
- * 1. Initializes the Stockfish engine
- * 2. Configures it to the bot's ELO
- * 3. Requests best moves and applies them to the board
+ * Uses a state-machine approach (idle → initializing → ready → thinking → ready)
+ * to prevent race conditions between engine init and move requests.
  */
 export function useAIPlayer() {
   const engineRef = useRef<StockfishEngine | null>(null);
-  const isInitializedRef = useRef(false);
-  const pendingMoveRef = useRef(false);
+  const lifecycleRef = useRef<AILifecycleState>('idle');
+  const moveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isAI = useChessStore((s) => s.isAI);
   const aiColor = useChessStore((s) => s.aiColor);
@@ -156,151 +172,134 @@ export function useAIPlayer() {
   const turn = useChessStore((s) => s.turn);
   const gameStatus = useChessStore((s) => s.gameStatus);
 
+  function clearPendingMove() {
+    if (moveTimerRef.current) {
+      clearTimeout(moveTimerRef.current);
+      moveTimerRef.current = null;
+    }
+  }
+
   // Initialize engine when AI game starts
   useEffect(() => {
     if (!isAI || !aiBotElo) {
-      // Clean up if AI mode is deactivated
+      clearPendingMove();
       if (engineRef.current) {
         engineRef.current.terminate();
         engineRef.current = null;
-        isInitializedRef.current = false;
       }
+      lifecycleRef.current = 'idle';
       return;
     }
 
+    // Avoid double-init when ELO changes mid-session
+    if (lifecycleRef.current !== 'idle') return;
+
+    lifecycleRef.current = 'initializing';
     const engine = new StockfishEngine();
     engineRef.current = engine;
 
-    // Set up the best move callback
     engine.onBestMove((bestMove, candidates) => {
-      // Small guard: only apply if it's still AI's turn
-      const state = useChessStore.getState();
-      if (!state.isAI || state.turn !== state.aiColor) {
-        pendingMoveRef.current = false;
+      if (lifecycleRef.current !== 'thinking') return;
+
+      const state = useChessStore.getState() as GameStateSnapshot;
+      if (!state.isAI || state.turn !== state.aiColor || state.matchResult.winner) {
+        lifecycleRef.current = 'ready';
         return;
       }
 
       const gameIsActive = state.gameStatus === 'active' || state.gameStatus === 'check';
       if (!gameIsActive) {
-        pendingMoveRef.current = false;
+        lifecycleRef.current = 'ready';
         return;
       }
 
-      // Humanized low ELO move selection
       const profile = interpolateProfile(state.aiBotElo ?? 1000);
       let selectedMove = bestMove;
-      let delay = 100; // default tiny delay
+      let delay = 100;
       
       if (profile && candidates.length > 0) {
         selectedMove = selectHumanizedMove(bestMove, candidates, profile, state);
-        
-        // Reactive thinking time
         delay = profile.randomDelayMin + Math.random() * (profile.randomDelayMax - profile.randomDelayMin);
         if (candidates.length > 1) {
           const evalDiff = Math.abs(candidates[0].scoreCp - candidates[1].scoreCp);
           if (evalDiff > 300 || candidates[0].mate !== null) {
-            // Obvious move -> faster
             delay *= 0.5;
           } else if (evalDiff < 50) {
-            // Hard choice -> slower
             delay *= 1.5;
           }
         }
       } else {
-        // High ELO: static random delay for realism
         delay = 400 + Math.random() * 500;
       }
 
-      // Schedule the move application
-      setTimeout(() => {
-        // Final state check before applying
-        const currentState = useChessStore.getState();
+      moveTimerRef.current = setTimeout(() => {
+        moveTimerRef.current = null;
+        const currentState = useChessStore.getState() as GameStateSnapshot;
         if (!currentState.isAI || currentState.turn !== currentState.aiColor || currentState.matchResult.winner) {
-          pendingMoveRef.current = false;
+          lifecycleRef.current = 'ready';
           return;
         }
-
-        const from = selectedMove.from as Parameters<typeof state.movePiece>[0];
-        const to = selectedMove.to as Parameters<typeof state.movePiece>[0];
-        
-        currentState.movePiece(from, to);
-        pendingMoveRef.current = false;
+        currentState.movePiece(selectedMove.from as Square, selectedMove.to as Square);
+        lifecycleRef.current = 'ready';
       }, delay);
     });
 
-    // Initialize and configure
     engine.init()
       .then(() => engine.setElo(aiBotElo))
       .then(() => {
-        isInitializedRef.current = true;
+        if (engineRef.current !== engine) return; // stale, already replaced
+        lifecycleRef.current = 'ready';
         
-        // If it's already AI's turn (shouldn't happen at start, but just in case)
-        const state = useChessStore.getState();
+        const state = useChessStore.getState() as GameStateSnapshot;
         if (state.turn === state.aiColor && (state.gameStatus === 'active' || state.gameStatus === 'check')) {
-          requestAIMove(engine, state.fen, aiBotElo);
+          lifecycleRef.current = 'thinking';
+          engine.go(state.fen, StockfishEngine.getDepthForElo(aiBotElo));
         }
       })
       .catch((err) => {
         console.error('[useAIPlayer] Failed to initialize Stockfish:', err);
+        lifecycleRef.current = 'error';
       });
 
     return () => {
+      clearPendingMove();
       engine.terminate();
-      engineRef.current = null;
-      isInitializedRef.current = false;
-      pendingMoveRef.current = false;
+      if (engineRef.current === engine) {
+        engineRef.current = null;
+      }
+      lifecycleRef.current = 'idle';
     };
-  // Only re-run when AI mode or ELO changes (not on every fen/turn change)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAI, aiBotElo]);
 
   // Trigger AI move when it's AI's turn
   useEffect(() => {
-    // If cleanup was triggered (e.g. by undo or reset), we clear pending move
-    pendingMoveRef.current = false;
-    
-    if (!isAI || !aiColor || !engineRef.current || !isInitializedRef.current) {
-      return;
-    }
-
+    if (!isAI || !aiColor) return;
     if (turn !== aiColor) return;
     if (gameStatus !== 'active' && gameStatus !== 'check') return;
 
-    // Use latest state to avoid stale closures
-    const state = useChessStore.getState();
-    const elo = state.aiBotElo ?? 1000;
-    
-    // We don't delay the engine.go() call anymore, the delay is applied in onBestMove
-    // This allows reactive delay based on candidates.
-    pendingMoveRef.current = true;
-    
-    // If we call requestAIMove immediately but engine isn't ready, stockfishEngine might drop it
-    // Wait for next tick to ensure we don't hit race conditions with engine startup
-    const timer = setTimeout(() => {
-      const latestEngine = engineRef.current;
-      if (!latestEngine) {
-        pendingMoveRef.current = false;
-        return;
-      }
-      
-      const latestState = useChessStore.getState();
-      if (!latestState.isAI || latestState.turn !== latestState.aiColor || latestState.matchResult.winner) {
-        pendingMoveRef.current = false;
-        return;
-      }
+    // Only dispatch a new move if engine is ready and not already thinking
+    if (lifecycleRef.current !== 'ready') return;
+    if (!engineRef.current) return;
 
-      requestAIMove(latestEngine, latestState.fen, elo);
+    const engine = engineRef.current;
+
+    // Small debounce to handle React StrictMode double-fire
+    const timer = setTimeout(() => {
+      const state = useChessStore.getState() as GameStateSnapshot;
+      if (!state.isAI || state.turn !== state.aiColor || state.matchResult.winner) return;
+      if (lifecycleRef.current !== 'ready') return;
+
+      lifecycleRef.current = 'thinking';
+      engine.go(state.fen, StockfishEngine.getDepthForElo(state.aiBotElo ?? 1000));
     }, 50);
 
     return () => {
       clearTimeout(timer);
-      // Unmount / turn change / reset cleans up pending state
-      pendingMoveRef.current = false;
+      // If we cancel before the timer fires, stay in ready state
+      if (lifecycleRef.current === 'thinking') {
+        clearPendingMove();
+        lifecycleRef.current = 'ready';
+      }
     };
   }, [isAI, aiColor, turn, fen, gameStatus]);
-}
-
-function requestAIMove(engine: StockfishEngine, fen: string, elo: number): void {
-  const depth = StockfishEngine.getDepthForElo(elo);
-  engine.go(fen, depth);
 }

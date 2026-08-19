@@ -7,10 +7,6 @@ import * as THREE from 'three';
 import { useChessStore } from '@/store/useChessStore';
 import { ChessBoard } from './ChessBoard';
 import { Table } from './Table';
-import { GrassPlane } from './GrassPlane';
-import { ScatteredGrass } from './ScatteredGrass';
-import { Tree } from './Tree';
-import { SearsiaLucida } from './SearsiaLucida';
 import { ConfettiRenderer } from './ConfettiRenderer';
 
 /* ── Table geometry constants ──
@@ -21,7 +17,7 @@ import { ConfettiRenderer } from './ConfettiRenderer';
 const TABLE_SCALE = 7;
 const TABLE_SURFACE_Y = 3.21 * TABLE_SCALE; // ≈ 7.06
 
-function CameraController({ controlsRef }: { controlsRef: React.RefObject<any> }) {
+function CameraController({ controlsRef }: { controlsRef: React.RefObject<THREE.OrbitControls> }) {
   const { camera } = useThree();
   const online = useChessStore((state) => state.online);
   const cameraResetTrigger = useChessStore((state) => state.cameraResetTrigger);
@@ -43,7 +39,7 @@ function CameraController({ controlsRef }: { controlsRef: React.RefObject<any> }
 }
 
 export const Scene3D = React.memo(() => {
-  const controlsRef = useRef<any>(null);
+  const controlsRef = useRef<THREE.OrbitControls>(null);
 
   return (
     <div className="relative w-full h-screen">

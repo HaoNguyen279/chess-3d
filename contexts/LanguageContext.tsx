@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useMounted } from '@/lib/useMounted';
 import { en } from '@/dictionaries/en';
 import { vi } from '@/dictionaries/vi';
 
@@ -20,20 +21,17 @@ const LanguageContext = createContext<LanguageContextType | null>(null);
 const STORAGE_KEY = 'chess-locale';
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>('en');
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
+  const [locale, setLocaleState] = useState<Locale>(() => {
+    if (typeof window === 'undefined') return 'en';
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === 'en' || saved === 'vi') {
-        setLocaleState(saved);
-      }
+      if (saved === 'en' || saved === 'vi') return saved;
     } catch {
       // localStorage not available
     }
-  }, []);
+    return 'en';
+  });
+  const mounted = useMounted();
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);

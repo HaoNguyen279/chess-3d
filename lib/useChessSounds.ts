@@ -105,7 +105,7 @@ export function useChessSounds() {
       }
     }
     prevLengthRef.current = moveHistoryLength;
-  }, [moveHistoryLength, gameStatus, game]);
+  }, [moveHistoryLength, gameStatus, game, playMove, playCapture, playCheck, playGameEnd]);
 
   return {
     playMove,
